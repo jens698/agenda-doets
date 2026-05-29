@@ -1,24 +1,30 @@
-/* ============================================================
-   Mijn Werkagenda — alle logica
-   Data wordt lokaal opgeslagen in de browser (localStorage).
-   ============================================================ */
-
+/* ===========================================================
+   Werkagenda — applicatielogica
+   Data wordt lokaal in de browser opgeslagen (localStorage).
+   =========================================================== */
 (() => {
   "use strict";
 
-  const STORE_KEY = "werkagenda.v1";
-  const $ = (sel) => document.querySelector(sel);
-  const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+  const STORE_KEY = "werkagenda.v2";
+  const $ = (s) => document.querySelector(s);
+  const $$ = (s) => Array.from(document.querySelectorAll(s));
 
-  /* ---------- Standaardcategorieën ---------- */
+  /* ---- SVG-iconen ---- */
+  const I = {
+    check: '<svg class="icon" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>',
+    clock: '<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>',
+    bell: '<svg class="icon" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>',
+    plus: '<svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+    inbox: '<svg class="icon" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5h13l3.5 7v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6z"/></svg>',
+  };
+
   const DEFAULT_CATEGORIES = [
-    { id: "werk", name: "Werk", color: "#6366f1" },
-    { id: "vergadering", name: "Vergadering", color: "#0ea5e9" },
-    { id: "persoonlijk", name: "Persoonlijk", color: "#22c55e" },
-    { id: "urgent", name: "Urgent", color: "#ef4444" },
+    { id: "werk", name: "Werk", color: "#2f6a52" },
+    { id: "vergadering", name: "Overleg", color: "#3a6ea5" },
+    { id: "persoonlijk", name: "Persoonlijk", color: "#9a7430" },
+    { id: "urgent", name: "Urgent", color: "#a8443a" },
   ];
 
-  /* ---------- State ---------- */
   let state = loadState();
   let currentView = "today";
   let activeCategory = null;
@@ -28,283 +34,279 @@
     try {
       const raw = localStorage.getItem(STORE_KEY);
       if (raw) {
-        const parsed = JSON.parse(raw);
-        return {
-          tasks: parsed.tasks || [],
-          categories: parsed.categories || DEFAULT_CATEGORIES,
-          theme: parsed.theme || "light",
-        };
+        const p = JSON.parse(raw);
+        return { tasks: p.tasks || [], categories: p.categories || DEFAULT_CATEGORIES };
       }
-    } catch (e) {
-      console.warn("Kon opgeslagen data niet laden:", e);
-    }
-    return { tasks: [], categories: DEFAULT_CATEGORIES, theme: "light" };
+    } catch (e) { console.warn(e); }
+    return { tasks: [], categories: DEFAULT_CATEGORIES };
   }
-
-  function save() {
-    localStorage.setItem(STORE_KEY, JSON.stringify(state));
-  }
-
+  function save() { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
-  /* ---------- Datum-helpers ---------- */
+  /* ---- datum-helpers ---- */
   const pad = (n) => String(n).padStart(2, "0");
-  const todayStr = () => {
-    const d = new Date();
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  };
+  const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const todayStr = () => iso(new Date());
 
-  function dueDate(task) {
-    if (!task.date) return null;
-    const t = task.time || "23:59";
-    return new Date(`${task.date}T${t}`);
+  function dueDate(t) {
+    if (!t.date) return null;
+    return new Date(`${t.date}T${t.time || "23:59"}`);
   }
-
-  function isToday(task) { return task.date === todayStr(); }
-
-  function isThisWeek(task) {
-    if (!task.date) return false;
-    const d = new Date(task.date + "T00:00");
-    const now = new Date();
-    const start = new Date(now);
-    start.setDate(now.getDate() - ((now.getDay() + 6) % 7)); // maandag
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(start);
-    end.setDate(start.getDate() + 7);
-    return d >= start && d < end;
+  const isToday = (t) => t.date === todayStr();
+  function weekStart() {
+    const n = new Date();
+    const s = new Date(n);
+    s.setDate(n.getDate() - ((n.getDay() + 6) % 7));
+    s.setHours(0, 0, 0, 0);
+    return s;
   }
-
-  function isOverdue(task) {
-    if (task.done) return false;
-    const due = dueDate(task);
-    return due && due < new Date();
+  function isThisWeek(t) {
+    if (!t.date) return false;
+    const d = new Date(t.date + "T00:00");
+    const s = weekStart();
+    const e = new Date(s); e.setDate(s.getDate() + 7);
+    return d >= s && d < e;
   }
-
-  const fmtDate = (str) => {
+  function isOverdue(t) {
+    if (t.done) return false;
+    const d = dueDate(t);
+    return d && d < new Date();
+  }
+  const WD = ["zondag", "maandag", "dinsdag", "woensdag", "donderdag", "vrijdag", "zaterdag"];
+  const WD_SHORT = ["zo", "ma", "di", "wo", "do", "vr", "za"];
+  function fmtDate(str) {
     if (!str) return "";
     const d = new Date(str + "T00:00");
-    const today = todayStr();
     const tmr = new Date(); tmr.setDate(tmr.getDate() + 1);
-    const tmrStr = `${tmr.getFullYear()}-${pad(tmr.getMonth() + 1)}-${pad(tmr.getDate())}`;
-    if (str === today) return "Vandaag";
-    if (str === tmrStr) return "Morgen";
-    return d.toLocaleDateString("nl-NL", { weekday: "short", day: "numeric", month: "short" });
-  };
+    if (str === todayStr()) return "Vandaag";
+    if (str === iso(tmr)) return "Morgen";
+    return d.toLocaleDateString("nl-NL", { weekday: "long", day: "numeric", month: "long" });
+  }
 
-  /* ============================================================
-     RENDER
-     ============================================================ */
+  /* ---- render ---- */
   function render() {
-    renderHeaderDate();
+    $("#brand-date").textContent = new Date().toLocaleDateString("nl-NL", { weekday: "long", day: "numeric", month: "long" });
     renderCategories();
-    renderBadges();
-    renderStats();
-    renderTasks();
+    renderCounts();
+    renderSummary();
+    renderMain();
   }
 
-  function renderHeaderDate() {
-    $("#today-label").textContent = new Date().toLocaleDateString("nl-NL", {
-      weekday: "long", day: "numeric", month: "long",
-    });
-  }
-
-  function catById(id) { return state.categories.find((c) => c.id === id); }
+  const catById = (id) => state.categories.find((c) => c.id === id);
 
   function renderCategories() {
     const list = $("#cat-list");
     list.innerHTML = "";
-    const all = document.createElement("li");
-    all.innerHTML = `<span class="cat-dot" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)"></span> Alle categorieën`;
-    all.classList.toggle("active", activeCategory === null);
-    all.onclick = () => { activeCategory = null; render(); };
-    list.appendChild(all);
-
-    state.categories.forEach((cat) => {
-      const count = state.tasks.filter((t) => t.category === cat.id && !t.done).length;
+    const mkLi = (label, color, active, onClick, count) => {
       const li = document.createElement("li");
-      li.classList.toggle("active", activeCategory === cat.id);
-      li.innerHTML = `<span class="cat-dot" style="background:${cat.color}"></span>
-        ${escapeHtml(cat.name)} <span class="cat-count">${count}</span>`;
-      li.onclick = () => { activeCategory = cat.id; render(); };
-      list.appendChild(li);
+      if (active) li.classList.add("active");
+      li.innerHTML = `<span class="cat-dot" style="background:${color}"></span>${esc(label)}` +
+        (count != null ? `<span class="cat-count">${count}</span>` : "");
+      li.onclick = onClick;
+      return li;
+    };
+    list.appendChild(mkLi("Alle categorieën", "linear-gradient(135deg,#2f6a52,#3a6ea5)", activeCategory === null, () => { activeCategory = null; render(); }, null));
+    state.categories.forEach((c) => {
+      const count = state.tasks.filter((t) => t.category === c.id && !t.done).length;
+      list.appendChild(mkLi(c.name, c.color, activeCategory === c.id, () => { activeCategory = c.id; render(); }, count));
     });
 
-    // Populate category select in modal
     const sel = $("#f-category");
     sel.innerHTML = "";
-    state.categories.forEach((cat) => {
-      const opt = document.createElement("option");
-      opt.value = cat.id;
-      opt.textContent = cat.name;
-      sel.appendChild(opt);
+    state.categories.forEach((c) => {
+      const o = document.createElement("option");
+      o.value = c.id; o.textContent = c.name; sel.appendChild(o);
     });
   }
 
-  function renderBadges() {
-    $("#badge-today").textContent = state.tasks.filter((t) => isToday(t) && !t.done).length;
-    $("#badge-all").textContent = state.tasks.filter((t) => !t.done).length;
+  function renderCounts() {
+    $("#count-today").textContent = state.tasks.filter((t) => isToday(t) && !t.done).length;
+    $("#count-all").textContent = state.tasks.filter((t) => !t.done).length;
   }
 
-  function renderStats() {
+  function renderSummary() {
     const open = state.tasks.filter((t) => !t.done).length;
-    const done = state.tasks.filter((t) => t.done).length;
     const overdue = state.tasks.filter((t) => isOverdue(t)).length;
-    const total = open + done;
-    const pct = total ? Math.round((done / total) * 100) : 0;
-
-    $("#stats").innerHTML = `
-      <div class="stat-card"><div class="stat-num">${open}</div><div class="stat-label">Openstaand</div></div>
-      <div class="stat-card"><div class="stat-num" style="color:var(--danger)">${overdue}</div><div class="stat-label">Te laat</div></div>
-      <div class="stat-card"><div class="stat-num" style="color:var(--success)">${done}</div><div class="stat-label">Afgerond</div></div>
-      <div class="stat-card">
-        <div class="stat-num">${pct}%</div><div class="stat-label">Voortgang</div>
-        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
-      </div>`;
+    const today = state.tasks.filter((t) => isToday(t) && !t.done).length;
+    const done = state.tasks.filter((t) => t.done).length;
+    $("#summary").innerHTML = `
+      <div class="item"><span class="num">${today}</span><span class="lbl">Vandaag</span></div>
+      <div class="item"><span class="num">${open}</span><span class="lbl">Openstaand</span></div>
+      <div class="item"><span class="num danger">${overdue}</span><span class="lbl">Te laat</span></div>
+      <div class="item"><span class="num accent">${done}</span><span class="lbl">Afgerond</span></div>`;
   }
 
-  const VIEW_META = {
-    today: { title: "Vandaag", sub: "Je taken voor vandaag" },
-    week: { title: "Deze week", sub: "Alles van maandag t/m zondag" },
-    all: { title: "Alle taken", sub: "Een compleet overzicht" },
-    done: { title: "Afgerond", sub: "Goed bezig! 🎉" },
+  const META = {
+    today: ["Vandaag", () => new Date().toLocaleDateString("nl-NL", { weekday: "long", day: "numeric", month: "long" })],
+    week:  ["Deze week", () => { const s = weekStart(), e = new Date(s); e.setDate(s.getDate() + 6); return `${s.getDate()} – ${e.toLocaleDateString("nl-NL", { day: "numeric", month: "long" })}`; }],
+    all:   ["Alle taken", () => "Een volledig overzicht van wat openstaat"],
+    done:  ["Afgerond", () => "Wat je hebt afgevinkt"],
   };
 
-  function filterForView(tasks) {
-    let list = tasks.slice();
-    if (currentView === "today") list = list.filter((t) => isToday(t) && !t.done);
-    else if (currentView === "week") list = list.filter((t) => isThisWeek(t) && !t.done);
-    else if (currentView === "all") list = list.filter((t) => !t.done);
-    else if (currentView === "done") list = list.filter((t) => t.done);
-
-    if (activeCategory) list = list.filter((t) => t.category === activeCategory);
+  function applyFilters(tasks) {
+    let l = tasks.slice();
+    if (currentView === "today") l = l.filter((t) => isToday(t) && !t.done);
+    else if (currentView === "week") l = l.filter((t) => isThisWeek(t));
+    else if (currentView === "all") l = l.filter((t) => !t.done);
+    else if (currentView === "done") l = l.filter((t) => t.done);
+    if (activeCategory) l = l.filter((t) => t.category === activeCategory);
     if (searchTerm) {
       const q = searchTerm.toLowerCase();
-      list = list.filter((t) =>
-        t.title.toLowerCase().includes(q) || (t.notes || "").toLowerCase().includes(q));
+      l = l.filter((t) => t.title.toLowerCase().includes(q) || (t.notes || "").toLowerCase().includes(q));
     }
-    return list;
+    return l;
   }
-
   function sortTasks(tasks) {
-    const prioRank = { high: 0, medium: 1, low: 2 };
+    const rank = { high: 0, medium: 1, low: 2 };
     return tasks.sort((a, b) => {
       const da = dueDate(a), db = dueDate(b);
-      if (da && db) return da - db;
-      if (da) return -1;
-      if (db) return 1;
-      return prioRank[a.priority] - prioRank[b.priority];
+      if (da && db && +da !== +db) return da - db;
+      if (da && !db) return -1;
+      if (db && !da) return 1;
+      return rank[a.priority] - rank[b.priority];
     });
   }
 
-  function renderTasks() {
-    const meta = VIEW_META[currentView];
-    $("#view-title").textContent = meta.title;
-    $("#view-subtitle").textContent = meta.sub;
+  function renderMain() {
+    const [title, subFn] = META[currentView];
+    $("#view-title").textContent = title;
+    $("#view-sub").textContent = subFn();
+    const c = $("#content");
+    c.innerHTML = "";
+    if (currentView === "week") { renderWeek(c); return; }
 
-    const area = $("#task-area");
-    let tasks = sortTasks(filterForView(state.tasks));
+    const tasks = sortTasks(applyFilters(state.tasks));
+    if (!tasks.length) { c.appendChild(emptyState()); return; }
 
-    if (!tasks.length) {
-      area.innerHTML = `
-        <div class="empty">
-          <div class="empty-emoji">${currentView === "done" ? "🌱" : "🎯"}</div>
-          <h3>${currentView === "done" ? "Nog niets afgerond" : "Geen taken hier"}</h3>
-          <p>${currentView === "done" ? "Afgevinkte taken verschijnen hier." : "Voeg een taak toe met de knop rechtsboven."}</p>
-        </div>`;
-      return;
-    }
-
-    // Group by date for relevant views
-    area.innerHTML = "";
-    if (currentView === "all" || currentView === "week") {
+    if (currentView === "all") {
       const groups = {};
-      tasks.forEach((t) => {
-        const key = t.date || "geen";
-        (groups[key] = groups[key] || []).push(t);
+      tasks.forEach((t) => { const k = t.date || "_"; (groups[k] = groups[k] || []).push(t); });
+      Object.keys(groups).sort((a, b) => (a === "_" ? 1 : b === "_" ? -1 : a.localeCompare(b))).forEach((k) => {
+        const h = document.createElement("div");
+        h.className = "group-title";
+        h.textContent = k === "_" ? "Zonder datum" : fmtDate(k);
+        c.appendChild(h);
+        groups[k].forEach((t) => c.appendChild(taskRow(t)));
       });
-      Object.keys(groups).sort((a, b) => (a === "geen" ? 1 : b === "geen" ? -1 : a.localeCompare(b)))
-        .forEach((key) => {
-          const title = document.createElement("div");
-          title.className = "task-group-title";
-          title.textContent = key === "geen" ? "Zonder datum" : fmtDate(key);
-          area.appendChild(title);
-          groups[key].forEach((t) => area.appendChild(taskEl(t)));
-        });
     } else {
-      tasks.forEach((t) => area.appendChild(taskEl(t)));
+      tasks.forEach((t) => c.appendChild(taskRow(t)));
     }
   }
 
-  function taskEl(task) {
-    const el = document.createElement("div");
-    el.className = `task prio-${task.priority}${task.done ? " done" : ""}`;
-    const cat = catById(task.category);
+  function emptyState() {
+    const d = document.createElement("div");
+    d.className = "empty";
+    d.innerHTML = `${I.inbox}<h3>${currentView === "done" ? "Nog niets afgerond" : "Niets gepland"}</h3>
+      <p>${currentView === "done" ? "Afgevinkte taken verschijnen hier." : "Voeg een taak toe met de knop rechtsboven."}</p>`;
+    return d;
+  }
 
-    const metaChips = [];
-    if (task.time || task.date) {
-      const overdue = isOverdue(task);
-      const label = `${task.date ? fmtDate(task.date) : ""}${task.time ? " · " + task.time : ""}`.trim();
-      metaChips.push(`<span class="chip ${overdue ? "chip-overdue" : "chip-time"}">${overdue ? "⏰ Te laat: " : "🕒 "}${escapeHtml(label)}</span>`);
+  function taskRow(t) {
+    const el = document.createElement("div");
+    el.className = "task" + (t.done ? " done" : "");
+    const cat = catById(t.category);
+    const bits = [];
+    if (t.date || t.time) {
+      const od = isOverdue(t);
+      const label = `${t.date ? fmtDateShort(t.date) : ""}${t.time ? (t.date ? " · " : "") + t.time : ""}`;
+      bits.push(`<span class="meta-bit${od ? " overdue" : ""}">${I.clock}${esc(label)}</span>`);
     }
-    if (cat) metaChips.push(`<span class="chip chip-cat"><span class="cat-dot" style="background:${cat.color}"></span>${escapeHtml(cat.name)}</span>`);
-    if (task.reminder && !task.done) metaChips.push(`<span class="chip chip-reminder">🔔 Herinnering</span>`);
+    const prioLabel = { high: "Hoog", medium: "Normaal", low: "Laag" }[t.priority];
+    bits.push(`<span class="prio ${t.priority}"><span class="dot"></span>${prioLabel}</span>`);
+    if (cat) bits.push(`<span class="cat-tag"><span class="cat-dot" style="background:${cat.color}"></span>${esc(cat.name)}</span>`);
+    if (t.reminder && !t.done) bits.push(`<span class="meta-bit">${I.bell}Herinnering</span>`);
 
     el.innerHTML = `
-      <div class="check ${task.done ? "checked" : ""}">${task.done ? "✓" : ""}</div>
+      <div class="check${t.done ? " checked" : ""}">${t.done ? I.check : ""}</div>
       <div class="task-body">
-        <div class="task-title">${escapeHtml(task.title)}</div>
-        ${task.notes ? `<div class="task-notes">${escapeHtml(task.notes)}</div>` : ""}
-        ${metaChips.length ? `<div class="task-meta">${metaChips.join("")}</div>` : ""}
+        <div class="task-title">${esc(t.title)}</div>
+        ${t.notes ? `<div class="task-notes">${esc(t.notes)}</div>` : ""}
+        <div class="task-meta">${bits.join("")}</div>
       </div>`;
-
-    el.querySelector(".check").addEventListener("click", (e) => {
-      e.stopPropagation();
-      toggleDone(task.id);
-    });
-    el.addEventListener("click", () => openModal(task));
+    el.querySelector(".check").addEventListener("click", (e) => { e.stopPropagation(); toggleDone(t.id); });
+    el.addEventListener("click", () => openModal(t));
     return el;
   }
 
-  /* ============================================================
-     TAAK-ACTIES
-     ============================================================ */
+  function fmtDateShort(str) {
+    const d = new Date(str + "T00:00");
+    const tmr = new Date(); tmr.setDate(tmr.getDate() + 1);
+    if (str === todayStr()) return "Vandaag";
+    if (str === iso(tmr)) return "Morgen";
+    return d.toLocaleDateString("nl-NL", { weekday: "short", day: "numeric", month: "short" });
+  }
+
+  function renderWeek(c) {
+    const grid = document.createElement("div");
+    grid.className = "week";
+    const s = weekStart();
+    for (let i = 0; i < 7; i++) {
+      const day = new Date(s); day.setDate(s.getDate() + i);
+      const key = iso(day);
+      const col = document.createElement("div");
+      col.className = "day-col" + (key === todayStr() ? " today" : "");
+      let dayTasks = state.tasks.filter((t) => t.date === key);
+      if (activeCategory) dayTasks = dayTasks.filter((t) => t.category === activeCategory);
+      dayTasks = sortTasks(dayTasks);
+      col.innerHTML = `<div class="day-head"><div class="day-name">${WD_SHORT[day.getDay()]}</div><div class="day-num">${day.getDate()}</div></div>`;
+      const body = document.createElement("div");
+      body.className = "day-body";
+      dayTasks.forEach((t) => {
+        const dt = document.createElement("div");
+        dt.className = `day-task prio-${t.priority}` + (t.done ? " done" : "");
+        dt.innerHTML = `${t.time ? `<div class="dt-time">${esc(t.time)}</div>` : ""}<div class="dt-title">${esc(t.title)}</div>`;
+        dt.addEventListener("click", () => openModal(t));
+        body.appendChild(dt);
+      });
+      const add = document.createElement("button");
+      add.className = "day-add";
+      add.innerHTML = `${I.plus}`;
+      add.title = "Taak op deze dag";
+      add.addEventListener("click", () => openModal(null, key));
+      body.appendChild(add);
+      col.appendChild(body);
+      grid.appendChild(col);
+    }
+    c.appendChild(grid);
+  }
+
+  /* ---- acties ---- */
   function toggleDone(id) {
-    const task = state.tasks.find((t) => t.id === id);
-    if (!task) return;
-    task.done = !task.done;
-    if (task.done) { task.notified = true; toast("Taak afgerond! ✅"); }
-    save();
-    render();
+    const t = state.tasks.find((x) => x.id === id);
+    if (!t) return;
+    t.done = !t.done;
+    if (t.done) { t.notified = true; toast("Taak afgerond"); }
+    save(); render();
   }
-
   function deleteTask(id) {
-    state.tasks = state.tasks.filter((t) => t.id !== id);
-    save();
-    render();
-    toast("Taak verwijderd");
+    state.tasks = state.tasks.filter((x) => x.id !== id);
+    save(); render(); toast("Taak verwijderd");
   }
 
-  /* ============================================================
-     MODAL
-     ============================================================ */
+  /* ---- modal ---- */
   const backdrop = $("#modal-backdrop");
+  let formPriority = "medium";
 
-  function openModal(task = null) {
+  function setPriority(p) {
+    formPriority = p;
+    $$("#prio-seg button").forEach((b) => b.classList.toggle("active", b.dataset.p === p));
+  }
+
+  function openModal(task = null, presetDate = null) {
     $("#modal-title").textContent = task ? "Taak bewerken" : "Nieuwe taak";
     $("#task-id").value = task ? task.id : "";
     $("#f-title").value = task ? task.title : "";
     $("#f-notes").value = task ? task.notes || "" : "";
-    $("#f-date").value = task ? task.date || "" : todayStr();
+    $("#f-date").value = task ? task.date || "" : (presetDate || todayStr());
     $("#f-time").value = task ? task.time || "" : "";
-    $("#f-priority").value = task ? task.priority : "medium";
-    $("#f-category").value = task ? task.category || state.categories[0].id : state.categories[0].id;
+    setPriority(task ? task.priority : "medium");
+    $("#f-category").value = task ? (task.category || state.categories[0].id) : state.categories[0].id;
     $("#f-reminder").checked = task ? !!task.reminder : false;
     $("#delete-task").hidden = !task;
     backdrop.hidden = false;
-    setTimeout(() => $("#f-title").focus(), 50);
+    setTimeout(() => $("#f-title").focus(), 40);
   }
-
-  function closeModal() { backdrop.hidden = true; }
+  const closeModal = () => { backdrop.hidden = true; };
 
   $("#task-form").addEventListener("submit", (e) => {
     e.preventDefault();
@@ -314,26 +316,25 @@
       notes: $("#f-notes").value.trim(),
       date: $("#f-date").value,
       time: $("#f-time").value,
-      priority: $("#f-priority").value,
+      priority: formPriority,
       category: $("#f-category").value,
       reminder: $("#f-reminder").checked,
     };
     if (!data.title) return;
-
     if (id) {
-      const task = state.tasks.find((t) => t.id === id);
-      Object.assign(task, data);
-      task.notified = false; // opnieuw kunnen herinneren na bewerken
+      const t = state.tasks.find((x) => x.id === id);
+      Object.assign(t, data); t.notified = false;
       toast("Taak bijgewerkt");
     } else {
       state.tasks.push({ id: uid(), done: false, notified: false, created: Date.now(), ...data });
-      toast("Taak toegevoegd 🎉");
+      toast("Taak toegevoegd");
     }
-    save();
-    render();
-    closeModal();
+    save(); render(); closeModal();
   });
 
+  $("#prio-seg").addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (b) setPriority(b.dataset.p);
+  });
   $("#delete-task").addEventListener("click", () => {
     const id = $("#task-id").value;
     if (id && confirm("Deze taak verwijderen?")) { deleteTask(id); closeModal(); }
@@ -341,160 +342,67 @@
   $("#modal-close").addEventListener("click", closeModal);
   $("#modal-cancel").addEventListener("click", closeModal);
   backdrop.addEventListener("click", (e) => { if (e.target === backdrop) closeModal(); });
-  $("#add-task-btn").addEventListener("click", () => openModal());
+  $("#add-task").addEventListener("click", () => openModal());
 
-  /* ============================================================
-     NAVIGATIE / ZOEKEN
-     ============================================================ */
-  $$(".nav-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      $$(".nav-btn").forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-      currentView = btn.dataset.view;
-      render();
-    });
-  });
+  /* ---- navigatie / zoeken ---- */
+  $$(".nav-btn").forEach((b) => b.addEventListener("click", () => {
+    $$(".nav-btn").forEach((x) => x.classList.remove("active"));
+    b.classList.add("active");
+    currentView = b.dataset.view;
+    render();
+  }));
+  $("#search").addEventListener("input", (e) => { searchTerm = e.target.value; renderMain(); });
 
-  $("#search").addEventListener("input", (e) => {
-    searchTerm = e.target.value;
-    renderTasks();
-  });
-
-  /* ============================================================
-     THEMA
-     ============================================================ */
-  function applyTheme() {
-    document.documentElement.setAttribute("data-theme", state.theme);
-    $("#theme-toggle").textContent = state.theme === "dark" ? "☀️ Thema" : "🌙 Thema";
+  /* ---- herinneringen ---- */
+  const notifBtn = $("#notif-toggle");
+  function syncNotifBtn() {
+    const granted = "Notification" in window && Notification.permission === "granted";
+    notifBtn.classList.toggle("on", granted);
+    $("#notif-label").textContent = granted ? "Herinneringen aan" : "Herinneringen aanzetten";
   }
-  $("#theme-toggle").addEventListener("click", () => {
-    state.theme = state.theme === "dark" ? "light" : "dark";
-    save();
-    applyTheme();
+  notifBtn.addEventListener("click", async () => {
+    if (!("Notification" in window)) { toast("Meldingen niet ondersteund in deze browser"); return; }
+    if (Notification.permission === "granted") { toast("Herinneringen staan al aan"); return; }
+    const p = await Notification.requestPermission();
+    syncNotifBtn();
+    toast(p === "granted" ? "Herinneringen ingeschakeld" : "Meldingen geweigerd");
   });
-
-  /* ============================================================
-     FOCUS-TIMER (Pomodoro)
-     ============================================================ */
-  let timer = { total: 25 * 60, remaining: 25 * 60, running: false, interval: null };
-
-  function updateTimerDisplay() {
-    const m = Math.floor(timer.remaining / 60);
-    const s = timer.remaining % 60;
-    $("#timer-display").textContent = `${pad(m)}:${pad(s)}`;
-    $("#timer-display").classList.toggle("running", timer.running);
-  }
-
-  function startTimer() {
-    if (timer.running) {
-      clearInterval(timer.interval);
-      timer.running = false;
-      $("#timer-start").textContent = "Verder";
-    } else {
-      timer.running = true;
-      $("#timer-start").textContent = "Pauze";
-      timer.interval = setInterval(() => {
-        timer.remaining--;
-        if (timer.remaining <= 0) {
-          clearInterval(timer.interval);
-          timer.running = false;
-          timer.remaining = timer.total;
-          $("#timer-start").textContent = "Start";
-          notify("⏱️ Timer afgelopen!", "Tijd voor een pauze of de volgende taak.");
-          toast("⏱️ Timer afgelopen!");
-        }
-        updateTimerDisplay();
-      }, 1000);
-    }
-    updateTimerDisplay();
-  }
-
-  function resetTimer() {
-    clearInterval(timer.interval);
-    timer.running = false;
-    timer.remaining = timer.total;
-    $("#timer-start").textContent = "Start";
-    updateTimerDisplay();
-  }
-
-  $("#timer-start").addEventListener("click", startTimer);
-  $("#timer-reset").addEventListener("click", resetTimer);
-  $$(".tmode").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      $$(".tmode").forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-      timer.total = parseInt(btn.dataset.min, 10) * 60;
-      resetTimer();
-    });
-  });
-
-  /* ============================================================
-     HERINNERINGEN (notificaties)
-     ============================================================ */
-  $("#notif-toggle").addEventListener("click", async () => {
-    if (!("Notification" in window)) { toast("Notificaties niet ondersteund"); return; }
-    const perm = await Notification.requestPermission();
-    toast(perm === "granted" ? "Meldingen staan aan 🔔" : "Meldingen geweigerd");
-  });
-
   function notify(title, body) {
-    if ("Notification" in window && Notification.permission === "granted") {
-      new Notification(title, { body, icon: "icon.svg" });
-    }
+    if ("Notification" in window && Notification.permission === "granted") new Notification(title, { body });
   }
-
-  // Check elke 30 sec op verlopen herinneringen
   function checkReminders() {
     const now = new Date();
-    state.tasks.forEach((task) => {
-      if (task.reminder && !task.done && !task.notified) {
-        const due = dueDate(task);
-        if (due && due <= now) {
-          notify("🔔 Herinnering: " + task.title, task.notes || "Deze taak staat gepland.");
-          task.notified = true;
-          save();
-        }
+    let changed = false;
+    state.tasks.forEach((t) => {
+      if (t.reminder && !t.done && !t.notified) {
+        const d = dueDate(t);
+        if (d && d <= now) { notify("Herinnering: " + t.title, t.notes || "Deze taak staat gepland."); t.notified = true; changed = true; }
       }
     });
+    if (changed) save();
   }
-  setInterval(checkReminders, 30 * 1000);
+  setInterval(checkReminders, 30000);
 
-  /* ============================================================
-     OVERIG
-     ============================================================ */
-  let toastTimeout;
+  /* ---- overig ---- */
+  let toastT;
   function toast(msg) {
     const el = $("#toast");
-    el.textContent = msg;
-    el.hidden = false;
-    clearTimeout(toastTimeout);
-    toastTimeout = setTimeout(() => (el.hidden = true), 2500);
+    el.textContent = msg; el.hidden = false;
+    clearTimeout(toastT); toastT = setTimeout(() => (el.hidden = true), 2400);
   }
-
-  function escapeHtml(str) {
-    return String(str).replace(/[&<>"']/g, (c) =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
-
-  // Sneltoetsen
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && !backdrop.hidden) closeModal();
     if ((e.key === "n" || e.key === "N") && backdrop.hidden &&
-        document.activeElement.tagName !== "INPUT" &&
-        document.activeElement.tagName !== "TEXTAREA") {
-      e.preventDefault();
-      openModal();
+        !["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName)) {
+      e.preventDefault(); openModal();
     }
   });
 
-  // Service worker voor offline gebruik
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("service-worker.js").catch(() => {});
-  }
-
-  /* ---------- Init ---------- */
-  applyTheme();
-  updateTimerDisplay();
+  /* ---- init ---- */
+  syncNotifBtn();
   render();
   checkReminders();
 })();
