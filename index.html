@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#6366f1" />
+  <title>Mijn Werkagenda</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-logo">📅</div>
+        <div class="brand-text">
+          <h1>Werkagenda</h1>
+          <span id="today-label"></span>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <button class="nav-btn active" data-view="today">
+          <span class="nav-ico">☀️</span> Vandaag
+          <span class="badge" id="badge-today">0</span>
+        </button>
+        <button class="nav-btn" data-view="week">
+          <span class="nav-ico">🗓️</span> Deze week
+        </button>
+        <button class="nav-btn" data-view="all">
+          <span class="nav-ico">📋</span> Alle taken
+          <span class="badge" id="badge-all">0</span>
+        </button>
+        <button class="nav-btn" data-view="done">
+          <span class="nav-ico">✅</span> Afgerond
+        </button>
+      </nav>
+
+      <div class="sidebar-section">
+        <h2>Categorieën</h2>
+        <ul class="cat-list" id="cat-list"></ul>
+      </div>
+
+      <div class="timer-card" id="timer-card">
+        <div class="timer-title">⏱️ Focus-timer</div>
+        <div class="timer-display" id="timer-display">25:00</div>
+        <div class="timer-modes">
+          <button class="tmode active" data-min="25">Focus</button>
+          <button class="tmode" data-min="5">Korte pauze</button>
+          <button class="tmode" data-min="15">Lange pauze</button>
+        </div>
+        <div class="timer-controls">
+          <button id="timer-start" class="btn-primary">Start</button>
+          <button id="timer-reset" class="btn-ghost">Reset</button>
+        </div>
+      </div>
+
+      <div class="sidebar-footer">
+        <button id="theme-toggle" class="btn-ghost" title="Wissel thema">🌙 Thema</button>
+        <button id="notif-toggle" class="btn-ghost" title="Herinneringen aanzetten">🔔 Meldingen</button>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <h2 id="view-title">Vandaag</h2>
+          <p id="view-subtitle" class="muted"></p>
+        </div>
+        <div class="topbar-actions">
+          <div class="search">
+            <span>🔍</span>
+            <input type="text" id="search" placeholder="Zoek taken..." />
+          </div>
+          <button class="btn-primary" id="add-task-btn">+ Nieuwe taak</button>
+        </div>
+      </header>
+
+      <section class="stats" id="stats"></section>
+
+      <section class="task-area" id="task-area">
+        <!-- Tasks render here -->
+      </section>
+    </main>
+  </div>
+
+  <!-- Task modal -->
+  <div class="modal-backdrop" id="modal-backdrop" hidden>
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="modal-head">
+        <h3 id="modal-title">Nieuwe taak</h3>
+        <button class="icon-btn" id="modal-close" aria-label="Sluiten">✕</button>
+      </div>
+      <form id="task-form" class="task-form">
+        <input type="hidden" id="task-id" />
+        <label>
+          Titel
+          <input type="text" id="f-title" required placeholder="Wat moet er gebeuren?" />
+        </label>
+        <label>
+          Notities
+          <textarea id="f-notes" rows="2" placeholder="Extra details (optioneel)"></textarea>
+        </label>
+        <div class="form-row">
+          <label>
+            Datum
+            <input type="date" id="f-date" />
+          </label>
+          <label>
+            Tijd
+            <input type="time" id="f-time" />
+          </label>
+        </div>
+        <div class="form-row">
+          <label>
+            Prioriteit
+            <select id="f-priority">
+              <option value="low">Laag</option>
+              <option value="medium" selected>Normaal</option>
+              <option value="high">Hoog</option>
+            </select>
+          </label>
+          <label>
+            Categorie
+            <select id="f-category"></select>
+          </label>
+        </div>
+        <label class="reminder-row">
+          <input type="checkbox" id="f-reminder" />
+          Herinner me op het ingestelde tijdstip
+        </label>
+        <div class="modal-actions">
+          <button type="button" class="btn-ghost" id="delete-task" hidden>Verwijderen</button>
+          <div class="spacer"></div>
+          <button type="button" class="btn-ghost" id="modal-cancel">Annuleren</button>
+          <button type="submit" class="btn-primary">Opslaan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
