@@ -33,6 +33,27 @@
   --font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
+[data-theme="dark"] {
+  --bg:          #1b1916;
+  --surface:     #24211e;
+  --surface-2:   #2d2925;
+  --border:      #393430;
+  --border-2:    #4a443d;
+  --text:        #f0ece3;
+  --text-2:      #c3bcb1;
+  --muted:       #8f877b;
+  --accent:      #5ba081;
+  --accent-deep: #74b89a;
+  --accent-soft: #283a31;
+  --accent-line: #3a5a49;
+  --danger:      #d4796d;
+  --danger-soft: #382926;
+  --warn:        #cba869;
+  --warn-soft:   #342e21;
+  --shadow-sm:   0 1px 2px rgba(0, 0, 0, .35);
+  --shadow:      0 10px 30px rgba(0, 0, 0, .5);
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body { height: 100%; }
@@ -81,6 +102,11 @@ body {
   font-size: 11px; font-weight: 600; text-transform: uppercase;
   letter-spacing: .07em; color: var(--muted); padding: 0 10px; margin-bottom: 9px;
 }
+.side-heading-row { display: flex; align-items: center; justify-content: space-between; padding: 0 10px; margin-bottom: 9px; }
+.side-heading-row .side-heading { padding: 0; margin: 0; }
+.heading-add { background: transparent; border: none; cursor: pointer; color: var(--muted); display: grid; place-items: center; padding: 3px; border-radius: 6px; }
+.heading-add:hover { background: var(--surface-2); color: var(--accent); }
+.heading-add .icon { width: 15px; height: 15px; }
 .cat-list { list-style: none; display: flex; flex-direction: column; gap: 1px; }
 .cat-list li {
   display: flex; align-items: center; gap: 10px; padding: 8px 10px;
@@ -289,6 +315,38 @@ body {
 #delete-task { color: var(--danger); background: transparent; border-color: transparent; padding-left: 6px; padding-right: 6px; }
 #delete-task:hover { background: var(--danger-soft); }
 
+/* ---------------- Subtaken (in taakkaart) ---------------- */
+.subbar { display: flex; align-items: center; gap: 9px; margin-top: 9px; }
+.subbar .track { flex: 0 0 96px; height: 5px; background: var(--border); border-radius: 999px; overflow: hidden; }
+.subbar .track > span { display: block; height: 100%; background: var(--accent); border-radius: 999px; transition: width .25s; }
+.subbar .lbl { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; font-weight: 500; }
+.subbar .lbl .icon { width: 13px; height: 13px; }
+
+/* ---------------- Subtaken (in venster) ---------------- */
+.subtasks { display: flex; flex-direction: column; gap: 5px; }
+.subtask-item { display: flex; align-items: center; gap: 9px; }
+.subtask-item .scheck { width: 18px; height: 18px; border: 1.6px solid var(--border-2); border-radius: 6px; display: grid; place-items: center; cursor: pointer; color: transparent; flex-shrink: 0; background: var(--surface); transition: all .14s; }
+.subtask-item .scheck:hover { border-color: var(--accent); }
+.subtask-item .scheck.checked { background: var(--accent); border-color: var(--accent); color: #fff; }
+.subtask-item .scheck .icon { width: 11px; height: 11px; stroke-width: 2.6; }
+.subtask-item input.stext { flex: 1; border: 1px solid transparent; background: transparent; font-size: 13.5px; color: var(--text); padding: 7px 8px; border-radius: 7px; font-family: var(--font); outline: none; }
+.subtask-item input.stext:focus { border-color: var(--border); background: var(--surface); }
+.subtask-item.done input.stext { text-decoration: line-through; color: var(--muted); }
+.subtask-item .srem { background: transparent; border: none; cursor: pointer; color: var(--muted); padding: 5px; border-radius: 6px; display: grid; place-items: center; }
+.subtask-item .srem:hover { color: var(--danger); background: var(--danger-soft); }
+.subtask-add { display: flex; gap: 8px; margin-top: 4px; }
+.subtask-add input { flex: 1; }
+.subtask-add .btn { padding: 9px 12px; }
+
+/* ---------------- Categorie-beheer ---------------- */
+.cat-rows { display: flex; flex-direction: column; gap: 8px; }
+.cat-row { display: flex; align-items: center; gap: 9px; }
+.cat-row input[type=color] { width: 36px; height: 36px; padding: 0; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); cursor: pointer; flex-shrink: 0; }
+.cat-row input[type=text] { flex: 1; }
+.cat-row .srem { background: transparent; border: none; cursor: pointer; color: var(--muted); padding: 7px; border-radius: 7px; display: grid; place-items: center; }
+.cat-row .srem:hover { color: var(--danger); background: var(--danger-soft); }
+.cat-empty { font-size: 13px; color: var(--muted); padding: 4px 2px; }
+
 /* ---------------- Toast ---------------- */
 .toast {
   position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%);
@@ -345,12 +403,21 @@ body {
       </nav>
 
       <div>
-        <div class="side-heading">Categorieën</div>
+        <div class="side-heading-row">
+          <span class="side-heading">Categorieën</span>
+          <button class="heading-add" id="manage-cats" title="Categorieën beheren">
+            <svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+        </div>
         <ul class="cat-list" id="cat-list"></ul>
       </div>
 
       <div class="sidebar-spacer"></div>
 
+      <button class="side-action" id="theme-toggle">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        <span id="theme-label">Donkere modus</span>
+      </button>
       <button class="side-action" id="notif-toggle">
         <svg class="icon" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
         <span id="notif-label">Herinneringen aanzetten</span>
@@ -414,6 +481,16 @@ body {
           <label for="f-category">Categorie</label>
           <select id="f-category"></select>
         </div>
+        <div class="field">
+          <span class="field-label">Subtaken</span>
+          <div class="subtasks" id="subtask-list"></div>
+          <div class="subtask-add">
+            <input type="text" id="subtask-input" placeholder="Subtaak toevoegen…" />
+            <button type="button" class="btn btn-ghost" id="subtask-add-btn">
+              <svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+          </div>
+        </div>
         <div class="switch-row">
           <div>
             <div class="txt">Herinnering</div>
@@ -431,6 +508,29 @@ body {
           <button type="submit" class="btn btn-primary">Opslaan</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="cat-backdrop" hidden>
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="modal-head">
+        <h3>Categorieën beheren</h3>
+        <button class="icon-btn" id="cat-close" aria-label="Sluiten">
+          <svg class="icon" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="task-form">
+        <div class="cat-rows" id="cat-rows"></div>
+        <button type="button" class="btn btn-ghost" id="cat-add" style="align-self:flex-start">
+          <svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Categorie toevoegen
+        </button>
+        <div class="modal-actions">
+          <div class="spacer"></div>
+          <button type="button" class="btn btn-ghost" id="cat-cancel">Annuleren</button>
+          <button type="button" class="btn btn-primary" id="cat-save">Opslaan</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -456,6 +556,10 @@ body {
     inbox: '<svg class="icon" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5h13l3.5 7v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6z"/></svg>',
     chevL: '<svg class="icon" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>',
     chevR: '<svg class="icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>',
+    x: '<svg class="icon" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+    list: '<svg class="icon" viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
+    sun: '<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg>',
+    moon: '<svg class="icon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>',
   };
 
   const DEFAULT_CATEGORIES = [
@@ -476,10 +580,10 @@ body {
       const raw = localStorage.getItem(STORE_KEY);
       if (raw) {
         const p = JSON.parse(raw);
-        return { tasks: p.tasks || [], categories: p.categories || DEFAULT_CATEGORIES };
+        return { tasks: p.tasks || [], categories: p.categories || DEFAULT_CATEGORIES, theme: p.theme || "light" };
       }
     } catch (e) { console.warn(e); }
-    return { tasks: [], categories: DEFAULT_CATEGORIES };
+    return { tasks: [], categories: DEFAULT_CATEGORIES, theme: "light" };
   }
   function save() { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -662,11 +766,21 @@ body {
     if (cat) bits.push(`<span class="cat-tag"><span class="cat-dot" style="background:${cat.color}"></span>${esc(cat.name)}</span>`);
     if (t.reminder && !t.done) bits.push(`<span class="meta-bit">${I.bell}Herinnering</span>`);
 
+    const subs = t.subtasks || [];
+    let subBar = "";
+    if (subs.length) {
+      const done = subs.filter((s) => s.done).length;
+      const pct = Math.round((done / subs.length) * 100);
+      subBar = `<div class="subbar"><div class="track"><span style="width:${pct}%"></span></div>` +
+        `<span class="lbl">${I.list}${done}/${subs.length}</span></div>`;
+    }
+
     el.innerHTML = `
       <div class="check${t.done ? " checked" : ""}">${t.done ? I.check : ""}</div>
       <div class="task-body">
         <div class="task-title">${esc(t.title)}</div>
         ${t.notes ? `<div class="task-notes">${esc(t.notes)}</div>` : ""}
+        ${subBar}
         <div class="task-meta">${bits.join("")}</div>
       </div>`;
     el.querySelector(".check").addEventListener("click", (e) => { e.stopPropagation(); toggleDone(t.id); });
@@ -757,11 +871,42 @@ body {
   /* ---- modal ---- */
   const backdrop = $("#modal-backdrop");
   let formPriority = "medium";
+  let formSubtasks = [];
 
   function setPriority(p) {
     formPriority = p;
     qa("#prio-seg button").forEach((b) => b.classList.toggle("active", b.dataset.p === p));
   }
+
+  function renderSubtasks() {
+    const box = $("#subtask-list");
+    box.innerHTML = "";
+    formSubtasks.forEach((s, i) => {
+      const row = document.createElement("div");
+      row.className = "subtask-item" + (s.done ? " done" : "");
+      row.innerHTML =
+        `<div class="scheck${s.done ? " checked" : ""}">${s.done ? I.check : ""}</div>` +
+        `<input class="stext" type="text" value="${esc(s.title)}" placeholder="Subtaak" />` +
+        `<button type="button" class="srem" title="Verwijderen">${I.x}</button>`;
+      row.querySelector(".scheck").addEventListener("click", () => { s.done = !s.done; renderSubtasks(); });
+      row.querySelector(".stext").addEventListener("input", (e) => { s.title = e.target.value; });
+      row.querySelector(".srem").addEventListener("click", () => { formSubtasks.splice(i, 1); renderSubtasks(); });
+      box.appendChild(row);
+    });
+  }
+  function addSubtask() {
+    const inp = $("#subtask-input");
+    const v = inp.value.trim();
+    if (!v) return;
+    formSubtasks.push({ id: uid(), title: v, done: false });
+    inp.value = "";
+    renderSubtasks();
+    inp.focus();
+  }
+  $("#subtask-add-btn").addEventListener("click", addSubtask);
+  $("#subtask-input").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); addSubtask(); }
+  });
 
   function openModal(task = null, presetDate = null) {
     $("#modal-title").textContent = task ? "Taak bewerken" : "Nieuwe taak";
@@ -773,6 +918,9 @@ body {
     setPriority(task ? task.priority : "medium");
     $("#f-category").value = task ? (task.category || state.categories[0].id) : state.categories[0].id;
     $("#f-reminder").checked = task ? !!task.reminder : false;
+    formSubtasks = task && task.subtasks ? task.subtasks.map((s) => ({ ...s })) : [];
+    renderSubtasks();
+    $("#subtask-input").value = "";
     $("#delete-task").hidden = !task;
     backdrop.hidden = false;
     setTimeout(() => $("#f-title").focus(), 40);
@@ -790,6 +938,7 @@ body {
       priority: formPriority,
       category: $("#f-category").value,
       reminder: $("#f-reminder").checked,
+      subtasks: formSubtasks.filter((s) => s.title.trim()).map((s) => ({ id: s.id, title: s.title.trim(), done: !!s.done })),
     };
     if (!data.title) return;
     if (id) {
@@ -842,6 +991,67 @@ body {
   function notify(title, body) {
     if ("Notification" in window && Notification.permission === "granted") new Notification(title, { body });
   }
+
+  /* ---- thema (licht / donker) ---- */
+  function applyTheme() {
+    document.documentElement.setAttribute("data-theme", state.theme || "light");
+    const dark = state.theme === "dark";
+    $("#theme-label").textContent = dark ? "Lichte modus" : "Donkere modus";
+    $("#theme-toggle").querySelector(".icon").outerHTML = dark ? I.sun : I.moon;
+  }
+  $("#theme-toggle").addEventListener("click", () => {
+    state.theme = state.theme === "dark" ? "light" : "dark";
+    save(); applyTheme();
+  });
+
+  /* ---- categorie-beheer ---- */
+  const catBackdrop = $("#cat-backdrop");
+  let formCats = [];
+
+  function renderCatRows() {
+    const box = $("#cat-rows");
+    box.innerHTML = "";
+    if (!formCats.length) {
+      box.innerHTML = `<div class="cat-empty">Nog geen categorieën. Voeg er hieronder een toe.</div>`;
+    }
+    formCats.forEach((c, i) => {
+      const row = document.createElement("div");
+      row.className = "cat-row";
+      row.innerHTML =
+        `<input type="color" value="${c.color}" />` +
+        `<input type="text" value="${esc(c.name)}" placeholder="Naam" />` +
+        `<button type="button" class="srem" title="Verwijderen">${I.x}</button>`;
+      row.querySelector('input[type="color"]').addEventListener("input", (e) => { c.color = e.target.value; });
+      row.querySelector('input[type="text"]').addEventListener("input", (e) => { c.name = e.target.value; });
+      row.querySelector(".srem").addEventListener("click", () => { formCats.splice(i, 1); renderCatRows(); });
+      box.appendChild(row);
+    });
+  }
+  function openCatModal() {
+    formCats = state.categories.map((c) => ({ ...c }));
+    renderCatRows();
+    catBackdrop.hidden = false;
+  }
+  const closeCatModal = () => { catBackdrop.hidden = true; };
+  $("#manage-cats").addEventListener("click", openCatModal);
+  $("#cat-add").addEventListener("click", () => {
+    formCats.push({ id: uid(), name: "", color: "#2f6a52" });
+    renderCatRows();
+    const inputs = $("#cat-rows").querySelectorAll('input[type="text"]');
+    if (inputs.length) inputs[inputs.length - 1].focus();
+  });
+  $("#cat-save").addEventListener("click", () => {
+    const cleaned = formCats.filter((c) => c.name.trim()).map((c) => ({ id: c.id, name: c.name.trim(), color: c.color }));
+    if (!cleaned.length) { toast("Houd minstens één categorie over"); return; }
+    const validIds = cleaned.map((c) => c.id);
+    state.tasks.forEach((t) => { if (t.category && !validIds.includes(t.category)) t.category = ""; });
+    state.categories = cleaned;
+    save(); render(); closeCatModal();
+    toast("Categorieën opgeslagen");
+  });
+  $("#cat-close").addEventListener("click", closeCatModal);
+  $("#cat-cancel").addEventListener("click", closeCatModal);
+  catBackdrop.addEventListener("click", (e) => { if (e.target === catBackdrop) closeCatModal(); });
   function checkReminders() {
     const now = new Date();
     let changed = false;
@@ -866,14 +1076,18 @@ body {
     return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && !backdrop.hidden) closeModal();
-    if ((e.key === "n" || e.key === "N") && backdrop.hidden &&
+    if (e.key === "Escape") {
+      if (!backdrop.hidden) closeModal();
+      if (!catBackdrop.hidden) closeCatModal();
+    }
+    if ((e.key === "n" || e.key === "N") && backdrop.hidden && catBackdrop.hidden &&
         !["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName)) {
       e.preventDefault(); openModal();
     }
   });
 
   /* ---- init ---- */
+  applyTheme();
   syncNotifBtn();
   render();
   checkReminders();

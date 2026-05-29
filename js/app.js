@@ -18,6 +18,10 @@
     inbox: '<svg class="icon" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5h13l3.5 7v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6z"/></svg>',
     chevL: '<svg class="icon" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>',
     chevR: '<svg class="icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>',
+    x: '<svg class="icon" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+    list: '<svg class="icon" viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
+    sun: '<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg>',
+    moon: '<svg class="icon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>',
   };
 
   const DEFAULT_CATEGORIES = [
@@ -38,10 +42,10 @@
       const raw = localStorage.getItem(STORE_KEY);
       if (raw) {
         const p = JSON.parse(raw);
-        return { tasks: p.tasks || [], categories: p.categories || DEFAULT_CATEGORIES };
+        return { tasks: p.tasks || [], categories: p.categories || DEFAULT_CATEGORIES, theme: p.theme || "light" };
       }
     } catch (e) { console.warn(e); }
-    return { tasks: [], categories: DEFAULT_CATEGORIES };
+    return { tasks: [], categories: DEFAULT_CATEGORIES, theme: "light" };
   }
   function save() { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -224,11 +228,21 @@
     if (cat) bits.push(`<span class="cat-tag"><span class="cat-dot" style="background:${cat.color}"></span>${esc(cat.name)}</span>`);
     if (t.reminder && !t.done) bits.push(`<span class="meta-bit">${I.bell}Herinnering</span>`);
 
+    const subs = t.subtasks || [];
+    let subBar = "";
+    if (subs.length) {
+      const done = subs.filter((s) => s.done).length;
+      const pct = Math.round((done / subs.length) * 100);
+      subBar = `<div class="subbar"><div class="track"><span style="width:${pct}%"></span></div>` +
+        `<span class="lbl">${I.list}${done}/${subs.length}</span></div>`;
+    }
+
     el.innerHTML = `
       <div class="check${t.done ? " checked" : ""}">${t.done ? I.check : ""}</div>
       <div class="task-body">
         <div class="task-title">${esc(t.title)}</div>
         ${t.notes ? `<div class="task-notes">${esc(t.notes)}</div>` : ""}
+        ${subBar}
         <div class="task-meta">${bits.join("")}</div>
       </div>`;
     el.querySelector(".check").addEventListener("click", (e) => { e.stopPropagation(); toggleDone(t.id); });
@@ -319,11 +333,42 @@
   /* ---- modal ---- */
   const backdrop = $("#modal-backdrop");
   let formPriority = "medium";
+  let formSubtasks = [];
 
   function setPriority(p) {
     formPriority = p;
     qa("#prio-seg button").forEach((b) => b.classList.toggle("active", b.dataset.p === p));
   }
+
+  function renderSubtasks() {
+    const box = $("#subtask-list");
+    box.innerHTML = "";
+    formSubtasks.forEach((s, i) => {
+      const row = document.createElement("div");
+      row.className = "subtask-item" + (s.done ? " done" : "");
+      row.innerHTML =
+        `<div class="scheck${s.done ? " checked" : ""}">${s.done ? I.check : ""}</div>` +
+        `<input class="stext" type="text" value="${esc(s.title)}" placeholder="Subtaak" />` +
+        `<button type="button" class="srem" title="Verwijderen">${I.x}</button>`;
+      row.querySelector(".scheck").addEventListener("click", () => { s.done = !s.done; renderSubtasks(); });
+      row.querySelector(".stext").addEventListener("input", (e) => { s.title = e.target.value; });
+      row.querySelector(".srem").addEventListener("click", () => { formSubtasks.splice(i, 1); renderSubtasks(); });
+      box.appendChild(row);
+    });
+  }
+  function addSubtask() {
+    const inp = $("#subtask-input");
+    const v = inp.value.trim();
+    if (!v) return;
+    formSubtasks.push({ id: uid(), title: v, done: false });
+    inp.value = "";
+    renderSubtasks();
+    inp.focus();
+  }
+  $("#subtask-add-btn").addEventListener("click", addSubtask);
+  $("#subtask-input").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); addSubtask(); }
+  });
 
   function openModal(task = null, presetDate = null) {
     $("#modal-title").textContent = task ? "Taak bewerken" : "Nieuwe taak";
@@ -335,6 +380,9 @@
     setPriority(task ? task.priority : "medium");
     $("#f-category").value = task ? (task.category || state.categories[0].id) : state.categories[0].id;
     $("#f-reminder").checked = task ? !!task.reminder : false;
+    formSubtasks = task && task.subtasks ? task.subtasks.map((s) => ({ ...s })) : [];
+    renderSubtasks();
+    $("#subtask-input").value = "";
     $("#delete-task").hidden = !task;
     backdrop.hidden = false;
     setTimeout(() => $("#f-title").focus(), 40);
@@ -352,6 +400,7 @@
       priority: formPriority,
       category: $("#f-category").value,
       reminder: $("#f-reminder").checked,
+      subtasks: formSubtasks.filter((s) => s.title.trim()).map((s) => ({ id: s.id, title: s.title.trim(), done: !!s.done })),
     };
     if (!data.title) return;
     if (id) {
@@ -404,6 +453,67 @@
   function notify(title, body) {
     if ("Notification" in window && Notification.permission === "granted") new Notification(title, { body });
   }
+
+  /* ---- thema (licht / donker) ---- */
+  function applyTheme() {
+    document.documentElement.setAttribute("data-theme", state.theme || "light");
+    const dark = state.theme === "dark";
+    $("#theme-label").textContent = dark ? "Lichte modus" : "Donkere modus";
+    $("#theme-toggle").querySelector(".icon").outerHTML = dark ? I.sun : I.moon;
+  }
+  $("#theme-toggle").addEventListener("click", () => {
+    state.theme = state.theme === "dark" ? "light" : "dark";
+    save(); applyTheme();
+  });
+
+  /* ---- categorie-beheer ---- */
+  const catBackdrop = $("#cat-backdrop");
+  let formCats = [];
+
+  function renderCatRows() {
+    const box = $("#cat-rows");
+    box.innerHTML = "";
+    if (!formCats.length) {
+      box.innerHTML = `<div class="cat-empty">Nog geen categorieën. Voeg er hieronder een toe.</div>`;
+    }
+    formCats.forEach((c, i) => {
+      const row = document.createElement("div");
+      row.className = "cat-row";
+      row.innerHTML =
+        `<input type="color" value="${c.color}" />` +
+        `<input type="text" value="${esc(c.name)}" placeholder="Naam" />` +
+        `<button type="button" class="srem" title="Verwijderen">${I.x}</button>`;
+      row.querySelector('input[type="color"]').addEventListener("input", (e) => { c.color = e.target.value; });
+      row.querySelector('input[type="text"]').addEventListener("input", (e) => { c.name = e.target.value; });
+      row.querySelector(".srem").addEventListener("click", () => { formCats.splice(i, 1); renderCatRows(); });
+      box.appendChild(row);
+    });
+  }
+  function openCatModal() {
+    formCats = state.categories.map((c) => ({ ...c }));
+    renderCatRows();
+    catBackdrop.hidden = false;
+  }
+  const closeCatModal = () => { catBackdrop.hidden = true; };
+  $("#manage-cats").addEventListener("click", openCatModal);
+  $("#cat-add").addEventListener("click", () => {
+    formCats.push({ id: uid(), name: "", color: "#2f6a52" });
+    renderCatRows();
+    const inputs = $("#cat-rows").querySelectorAll('input[type="text"]');
+    if (inputs.length) inputs[inputs.length - 1].focus();
+  });
+  $("#cat-save").addEventListener("click", () => {
+    const cleaned = formCats.filter((c) => c.name.trim()).map((c) => ({ id: c.id, name: c.name.trim(), color: c.color }));
+    if (!cleaned.length) { toast("Houd minstens één categorie over"); return; }
+    const validIds = cleaned.map((c) => c.id);
+    state.tasks.forEach((t) => { if (t.category && !validIds.includes(t.category)) t.category = ""; });
+    state.categories = cleaned;
+    save(); render(); closeCatModal();
+    toast("Categorieën opgeslagen");
+  });
+  $("#cat-close").addEventListener("click", closeCatModal);
+  $("#cat-cancel").addEventListener("click", closeCatModal);
+  catBackdrop.addEventListener("click", (e) => { if (e.target === catBackdrop) closeCatModal(); });
   function checkReminders() {
     const now = new Date();
     let changed = false;
@@ -428,14 +538,18 @@
     return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && !backdrop.hidden) closeModal();
-    if ((e.key === "n" || e.key === "N") && backdrop.hidden &&
+    if (e.key === "Escape") {
+      if (!backdrop.hidden) closeModal();
+      if (!catBackdrop.hidden) closeCatModal();
+    }
+    if ((e.key === "n" || e.key === "N") && backdrop.hidden && catBackdrop.hidden &&
         !["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName)) {
       e.preventDefault(); openModal();
     }
   });
 
   /* ---- init ---- */
+  applyTheme();
   syncNotifBtn();
   render();
   checkReminders();

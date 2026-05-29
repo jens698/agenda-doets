@@ -25,6 +25,27 @@
   --font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
+[data-theme="dark"] {
+  --bg:          #1b1916;
+  --surface:     #24211e;
+  --surface-2:   #2d2925;
+  --border:      #393430;
+  --border-2:    #4a443d;
+  --text:        #f0ece3;
+  --text-2:      #c3bcb1;
+  --muted:       #8f877b;
+  --accent:      #5ba081;
+  --accent-deep: #74b89a;
+  --accent-soft: #283a31;
+  --accent-line: #3a5a49;
+  --danger:      #d4796d;
+  --danger-soft: #382926;
+  --warn:        #cba869;
+  --warn-soft:   #342e21;
+  --shadow-sm:   0 1px 2px rgba(0, 0, 0, .35);
+  --shadow:      0 10px 30px rgba(0, 0, 0, .5);
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body { height: 100%; }
@@ -73,6 +94,11 @@ body {
   font-size: 11px; font-weight: 600; text-transform: uppercase;
   letter-spacing: .07em; color: var(--muted); padding: 0 10px; margin-bottom: 9px;
 }
+.side-heading-row { display: flex; align-items: center; justify-content: space-between; padding: 0 10px; margin-bottom: 9px; }
+.side-heading-row .side-heading { padding: 0; margin: 0; }
+.heading-add { background: transparent; border: none; cursor: pointer; color: var(--muted); display: grid; place-items: center; padding: 3px; border-radius: 6px; }
+.heading-add:hover { background: var(--surface-2); color: var(--accent); }
+.heading-add .icon { width: 15px; height: 15px; }
 .cat-list { list-style: none; display: flex; flex-direction: column; gap: 1px; }
 .cat-list li {
   display: flex; align-items: center; gap: 10px; padding: 8px 10px;
@@ -280,6 +306,38 @@ body {
 .modal-actions .spacer { flex: 1; }
 #delete-task { color: var(--danger); background: transparent; border-color: transparent; padding-left: 6px; padding-right: 6px; }
 #delete-task:hover { background: var(--danger-soft); }
+
+/* ---------------- Subtaken (in taakkaart) ---------------- */
+.subbar { display: flex; align-items: center; gap: 9px; margin-top: 9px; }
+.subbar .track { flex: 0 0 96px; height: 5px; background: var(--border); border-radius: 999px; overflow: hidden; }
+.subbar .track > span { display: block; height: 100%; background: var(--accent); border-radius: 999px; transition: width .25s; }
+.subbar .lbl { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; font-weight: 500; }
+.subbar .lbl .icon { width: 13px; height: 13px; }
+
+/* ---------------- Subtaken (in venster) ---------------- */
+.subtasks { display: flex; flex-direction: column; gap: 5px; }
+.subtask-item { display: flex; align-items: center; gap: 9px; }
+.subtask-item .scheck { width: 18px; height: 18px; border: 1.6px solid var(--border-2); border-radius: 6px; display: grid; place-items: center; cursor: pointer; color: transparent; flex-shrink: 0; background: var(--surface); transition: all .14s; }
+.subtask-item .scheck:hover { border-color: var(--accent); }
+.subtask-item .scheck.checked { background: var(--accent); border-color: var(--accent); color: #fff; }
+.subtask-item .scheck .icon { width: 11px; height: 11px; stroke-width: 2.6; }
+.subtask-item input.stext { flex: 1; border: 1px solid transparent; background: transparent; font-size: 13.5px; color: var(--text); padding: 7px 8px; border-radius: 7px; font-family: var(--font); outline: none; }
+.subtask-item input.stext:focus { border-color: var(--border); background: var(--surface); }
+.subtask-item.done input.stext { text-decoration: line-through; color: var(--muted); }
+.subtask-item .srem { background: transparent; border: none; cursor: pointer; color: var(--muted); padding: 5px; border-radius: 6px; display: grid; place-items: center; }
+.subtask-item .srem:hover { color: var(--danger); background: var(--danger-soft); }
+.subtask-add { display: flex; gap: 8px; margin-top: 4px; }
+.subtask-add input { flex: 1; }
+.subtask-add .btn { padding: 9px 12px; }
+
+/* ---------------- Categorie-beheer ---------------- */
+.cat-rows { display: flex; flex-direction: column; gap: 8px; }
+.cat-row { display: flex; align-items: center; gap: 9px; }
+.cat-row input[type=color] { width: 36px; height: 36px; padding: 0; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); cursor: pointer; flex-shrink: 0; }
+.cat-row input[type=text] { flex: 1; }
+.cat-row .srem { background: transparent; border: none; cursor: pointer; color: var(--muted); padding: 7px; border-radius: 7px; display: grid; place-items: center; }
+.cat-row .srem:hover { color: var(--danger); background: var(--danger-soft); }
+.cat-empty { font-size: 13px; color: var(--muted); padding: 4px 2px; }
 
 /* ---------------- Toast ---------------- */
 .toast {
