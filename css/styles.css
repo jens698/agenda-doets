@@ -191,7 +191,11 @@ body {
 .cat-tag { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-2); font-weight: 500; }
 
 /* Week view */
-.week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin-top: 18px; }
+.week-nav { display: flex; align-items: center; gap: 8px; margin: 18px 0 4px; }
+.week-nav .btn { padding: 8px 13px; }
+.week-nav .btn .icon { width: 15px; height: 15px; }
+.week-nav .btn[data-nav="today"] { margin-left: auto; }
+.week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin-top: 14px; }
 .day-col {
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
   min-height: 220px; display: flex; flex-direction: column; overflow: hidden;

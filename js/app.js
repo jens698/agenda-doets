@@ -16,6 +16,8 @@
     bell: '<svg class="icon" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>',
     plus: '<svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
     inbox: '<svg class="icon" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5h13l3.5 7v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6z"/></svg>',
+    chevL: '<svg class="icon" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>',
+    chevR: '<svg class="icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>',
   };
 
   const DEFAULT_CATEGORIES = [
@@ -29,6 +31,7 @@
   let currentView = "today";
   let activeCategory = null;
   let searchTerm = "";
+  let weekOffset = 0; // 0 = deze week, -1 = vorige, 1 = volgende, ...
 
   function loadState() {
     try {
@@ -58,6 +61,11 @@
     const s = new Date(n);
     s.setDate(n.getDate() - ((n.getDay() + 6) % 7));
     s.setHours(0, 0, 0, 0);
+    return s;
+  }
+  function displayedWeekStart() {
+    const s = weekStart();
+    s.setDate(s.getDate() + weekOffset * 7);
     return s;
   }
   function isThisWeek(t) {
@@ -237,9 +245,34 @@
   }
 
   function renderWeek(c) {
+    const s = displayedWeekStart();
+    const e = new Date(s); e.setDate(s.getDate() + 6);
+
+    // Titel + ondertitel laten meebewegen met de getoonde week
+    const relLabel = { "0": "Deze week", "-1": "Vorige week", "1": "Volgende week" };
+    $("#view-title").textContent = relLabel[String(weekOffset)] ||
+      (weekOffset > 0 ? `Over ${weekOffset} weken` : `${Math.abs(weekOffset)} weken geleden`);
+    $("#view-sub").textContent =
+      `${s.toLocaleDateString("nl-NL", { day: "numeric", month: "long" })} – ${e.toLocaleDateString("nl-NL", { day: "numeric", month: "long" })}`;
+
+    // Navigatiebalk: vorige / vandaag / volgende
+    const nav = document.createElement("div");
+    nav.className = "week-nav";
+    nav.innerHTML =
+      `<button class="btn btn-ghost" data-nav="prev">${I.chevL} Vorige week</button>` +
+      `<button class="btn btn-ghost" data-nav="next">Volgende week ${I.chevR}</button>` +
+      (weekOffset !== 0 ? `<button class="btn btn-ghost" data-nav="today">Naar deze week</button>` : "");
+    nav.addEventListener("click", (ev) => {
+      const b = ev.target.closest("button"); if (!b) return;
+      if (b.dataset.nav === "prev") weekOffset--;
+      else if (b.dataset.nav === "next") weekOffset++;
+      else weekOffset = 0;
+      renderMain();
+    });
+    c.appendChild(nav);
+
     const grid = document.createElement("div");
     grid.className = "week";
-    const s = weekStart();
     for (let i = 0; i < 7; i++) {
       const day = new Date(s); day.setDate(s.getDate() + i);
       const key = iso(day);
@@ -349,6 +382,7 @@
     qa(".nav-btn").forEach((x) => x.classList.remove("active"));
     b.classList.add("active");
     currentView = b.dataset.view;
+    weekOffset = 0;
     render();
   }));
   $("#search").addEventListener("input", (e) => { searchTerm = e.target.value; renderMain(); });
