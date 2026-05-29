@@ -7,7 +7,7 @@
 
   const STORE_KEY = "werkagenda.v2";
   const $ = (s) => document.querySelector(s);
-  const $$ = (s) => Array.from(document.querySelectorAll(s));
+  const qa = (s) => Array.from(document.querySelectorAll(s));
 
   /* ---- SVG-iconen ---- */
   const I = {
@@ -289,7 +289,7 @@
 
   function setPriority(p) {
     formPriority = p;
-    $$("#prio-seg button").forEach((b) => b.classList.toggle("active", b.dataset.p === p));
+    qa("#prio-seg button").forEach((b) => b.classList.toggle("active", b.dataset.p === p));
   }
 
   function openModal(task = null, presetDate = null) {
@@ -345,8 +345,8 @@
   $("#add-task").addEventListener("click", () => openModal());
 
   /* ---- navigatie / zoeken ---- */
-  $$(".nav-btn").forEach((b) => b.addEventListener("click", () => {
-    $$(".nav-btn").forEach((x) => x.classList.remove("active"));
+  qa(".nav-btn").forEach((b) => b.addEventListener("click", () => {
+    qa(".nav-btn").forEach((x) => x.classList.remove("active"));
     b.classList.add("active");
     currentView = b.dataset.view;
     render();
