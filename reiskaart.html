@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Doets Reizen — Interactieve Reiskaart</title>
+
+<!-- Leaflet -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<!-- MarkerCluster -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+/* ============================================================
+   DESIGN SYSTEM
+   ============================================================ */
+:root{
+  --ink:        #0F172A;   /* dark navy */
+  --ink-2:      #1C2A45;   /* lighter panel */
+  --ink-3:      #243352;
+  --gold:       #B8962E;   /* accent */
+  --gold-soft:  #d4b454;
+  --line:       #2A3A5A;
+  --text:       #E8EDF6;
+  --text-dim:   #93A1BC;
+  --white:      #FFFFFF;
+  --hotel:      #2563EB;   /* blue */
+  --excursion:  #E07B1B;   /* orange */
+  --alt:        #16A34A;   /* alternative highlight green */
+  --danger:     #DC2626;
+}
+
+*{ box-sizing:border-box; margin:0; padding:0; }
+html,body{ height:100%; }
+body{
+  font-family:'Inter',system-ui,sans-serif;
+  color:var(--text);
+  background:var(--ink);
+  overflow:hidden;
+}
+h1,h2,h3,h4{ font-family:'Cormorant Garamond',serif; font-weight:600; letter-spacing:.2px; }
+button{ font-family:inherit; cursor:pointer; border:none; border-radius:0; }
+input,select{ font-family:inherit; border-radius:0; }
+::-webkit-scrollbar{ width:9px; height:9px; }
+::-webkit-scrollbar-thumb{ background:var(--ink-3); }
+::-webkit-scrollbar-track{ background:transparent; }
+
+/* ============================================================
+   LOGIN SCREEN
+   ============================================================ */
+#login{
+  position:fixed; inset:0; z-index:5000;
+  background:
+    radial-gradient(900px 600px at 70% 10%, rgba(184,150,46,.10), transparent 60%),
+    radial-gradient(700px 500px at 10% 90%, rgba(37,99,235,.10), transparent 60%),
+    var(--ink);
+  display:flex; align-items:center; justify-content:center;
+}
+.login-card{
+  width:min(420px, 92vw);
+  background:var(--ink-2);
+  border:1px solid var(--line);
+  padding:46px 40px 40px;
+  box-shadow:0 30px 80px rgba(0,0,0,.55);
+}
+.brand-mark{ display:flex; align-items:center; gap:12px; margin-bottom:6px; }
+.brand-globe{
+  width:42px; height:42px; flex:0 0 42px;
+  border:2px solid var(--gold);
+  border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  color:var(--gold);
+}
+.brand-globe svg{ width:24px; height:24px; }
+.brand-name{ font-family:'Cormorant Garamond',serif; font-size:30px; line-height:1; color:var(--white); }
+.brand-name b{ color:var(--gold); font-weight:700; }
+.login-sub{ color:var(--text-dim); font-size:13px; margin:14px 0 28px; letter-spacing:.3px; }
+.gold-rule{ height:2px; width:54px; background:var(--gold); margin:18px 0 22px; }
+.field{ margin-bottom:16px; }
+.field label{ display:block; font-size:11px; text-transform:uppercase; letter-spacing:1.4px; color:var(--text-dim); margin-bottom:7px; }
+.field input{
+  width:100%; padding:12px 14px;
+  background:var(--ink); color:var(--text);
+  border:1px solid var(--line); font-size:14px;
+  transition:border-color .15s;
+}
+.field input:focus{ outline:none; border-color:var(--gold); }
+.btn-gold{
+  width:100%; padding:13px;
+  background:var(--gold); color:var(--ink);
+  font-weight:600; font-size:14px; letter-spacing:.6px;
+  text-transform:uppercase; transition:background .15s, transform .05s;
+}
+.btn-gold:hover{ background:var(--gold-soft); }
+.btn-gold:active{ transform:translateY(1px); }
+.login-error{
+  display:none; margin-top:16px; padding:11px 14px;
+  background:rgba(220,38,38,.12); border:1px solid rgba(220,38,38,.45);
+  color:#FCA5A5; font-size:13px;
+}
+.login-error.show{ display:block; }
+.login-hint{ margin-top:22px; font-size:11px; color:var(--text-dim); line-height:1.6; }
+.login-hint code{ color:var(--gold-soft); }
+
+/* ============================================================
+   APP SHELL
+   ============================================================ */
+#app{ display:none; height:100%; flex-direction:column; }
+#app.active{ display:flex; }
+
+/* Top navigation */
+.topbar{
+  height:60px; flex:0 0 60px;
+  background:var(--ink); border-bottom:1px solid var(--line);
+  display:flex; align-items:center; gap:22px;
+  padding:0 18px; z-index:1200; position:relative;
+}
+.topbar .brand-mark{ margin:0; }
+.topbar .brand-globe{ width:34px; height:34px; flex-basis:34px; }
+.topbar .brand-globe svg{ width:19px; height:19px; }
+.topbar .brand-name{ font-size:23px; white-space:nowrap; }
+
+.dest-switch{ display:flex; gap:4px; margin-left:8px; }
+.dest{
+  padding:8px 16px; font-size:13px; font-weight:500;
+  background:transparent; color:var(--text-dim);
+  border-bottom:2px solid transparent; letter-spacing:.3px;
+  display:flex; align-items:center; gap:7px;
+}
+.dest .flag{ font-size:15px; }
+.dest.active{ color:var(--white); border-bottom-color:var(--gold); }
+.dest.soon{ cursor:not-allowed; opacity:.55; }
+.dest.soon .tag{
+  font-size:9px; text-transform:uppercase; letter-spacing:.6px;
+  background:var(--ink-3); color:var(--text-dim); padding:2px 5px;
+}
+.spacer{ flex:1; }
+.user-chip{ display:flex; align-items:center; gap:10px; color:var(--text-dim); font-size:13px; }
+.user-chip .avatar{
+  width:30px; height:30px; border-radius:50%;
+  background:var(--gold); color:var(--ink);
+  display:flex; align-items:center; justify-content:center;
+  font-weight:700; font-size:13px; text-transform:uppercase;
+}
+.user-chip b{ color:var(--text); font-weight:600; }
+.btn-logout{
+  padding:8px 14px; font-size:12px; font-weight:500;
+  background:transparent; color:var(--text-dim);
+  border:1px solid var(--line); letter-spacing:.4px;
+  display:flex; align-items:center; gap:6px;
+}
+.btn-logout:hover{ border-color:var(--gold); color:var(--gold-soft); }
+.btn-logout svg{ width:14px; height:14px; }
+
+/* Body row */
+.body-row{ flex:1; display:flex; min-height:0; position:relative; }
+
+/* Sidebar */
+.sidebar{
+  width:360px; flex:0 0 360px;
+  background:var(--ink); border-right:1px solid var(--line);
+  display:flex; flex-direction:column; min-height:0;
+  transition:margin-left .25s ease;
+  z-index:1100;
+}
+.sidebar.collapsed{ margin-left:-360px; }
+.side-head{ padding:18px 20px 14px; border-bottom:1px solid var(--line); }
+.side-head h2{ font-size:21px; color:var(--white); margin-bottom:2px; }
+.side-head .count-line{ font-size:12px; color:var(--text-dim); }
+.side-head .count-line b{ color:var(--gold-soft); }
+
+.search-box{ position:relative; margin-top:14px; }
+.search-box svg{ position:absolute; left:12px; top:50%; transform:translateY(-50%); width:16px; height:16px; color:var(--text-dim); }
+.search-box input{
+  width:100%; padding:11px 12px 11px 36px;
+  background:var(--ink-2); border:1px solid var(--line); color:var(--text); font-size:13px;
+}
+.search-box input:focus{ outline:none; border-color:var(--gold); }
+
+/* Filters */
+.filters{ padding:14px 20px; border-bottom:1px solid var(--line); display:flex; flex-direction:column; gap:11px; }
+.filter-row{ display:flex; flex-direction:column; gap:5px; }
+.filter-row label{ font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--text-dim); }
+.filter-row select{
+  padding:9px 10px; background:var(--ink-2); border:1px solid var(--line); color:var(--text); font-size:13px;
+}
+.filter-row select:focus{ outline:none; border-color:var(--gold); }
+.type-toggle{ display:flex; gap:6px; }
+.type-toggle button{
+  flex:1; padding:9px; font-size:12px; font-weight:500;
+  background:var(--ink-2); border:1px solid var(--line); color:var(--text-dim);
+  display:flex; align-items:center; justify-content:center; gap:6px;
+}
+.type-toggle button .dot{ width:9px; height:9px; border-radius:50%; }
+.type-toggle button.on{ color:var(--text); border-color:var(--gold); background:var(--ink-3); }
+.dot.hotel{ background:var(--hotel); }
+.dot.excursion{ background:var(--excursion); }
+.btn-reset{ background:none; color:var(--text-dim); font-size:11px; text-align:left; text-decoration:underline; padding:0; }
+.btn-reset:hover{ color:var(--gold-soft); }
+
+/* List */
+.list{ flex:1; overflow-y:auto; padding:8px 0; min-height:0; }
+.list-empty{ padding:30px 20px; text-align:center; color:var(--text-dim); font-size:13px; }
+.list-group-title{
+  padding:14px 20px 6px; font-size:10px; text-transform:uppercase; letter-spacing:1.4px; color:var(--gold);
+}
+.item{
+  padding:12px 20px; border-left:3px solid transparent; cursor:pointer;
+  display:flex; gap:12px; align-items:flex-start; transition:background .12s;
+}
+.item:hover{ background:var(--ink-2); }
+.item.active{ background:var(--ink-2); border-left-color:var(--gold); }
+.item-icon{
+  width:30px; height:30px; flex:0 0 30px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center; color:#fff; margin-top:1px;
+}
+.item-icon.hotel{ background:var(--hotel); }
+.item-icon.excursion{ background:var(--excursion); }
+.item-icon svg{ width:15px; height:15px; }
+.item-body{ flex:1; min-width:0; }
+.item-name{ font-size:14px; font-weight:600; color:var(--text); margin-bottom:2px; }
+.item-meta{ font-size:11.5px; color:var(--text-dim); display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.item-stars{ color:var(--gold); letter-spacing:1px; }
+.item-region{ display:inline-flex; align-items:center; gap:4px; }
+
+/* Sidebar toggle */
+.side-toggle{
+  position:absolute; top:14px; left:0; z-index:1150;
+  width:30px; height:46px;
+  background:var(--ink); border:1px solid var(--line); border-left:none;
+  color:var(--gold); display:flex; align-items:center; justify-content:center;
+  transition:left .25s ease;
+}
+.side-toggle.collapsed{ left:0; }
+.side-toggle:not(.collapsed){ left:360px; }
+.side-toggle svg{ width:16px; height:16px; transition:transform .25s; }
+.side-toggle.collapsed svg{ transform:rotate(180deg); }
+
+/* Map */
+#map{ flex:1; min-width:0; background:#0b1220; }
+
+/* Legend */
+.legend{
+  position:absolute; bottom:22px; right:14px; z-index:1000;
+  background:var(--ink); border:1px solid var(--line); padding:12px 14px;
+  font-size:12px; color:var(--text-dim);
+}
+.legend .row{ display:flex; align-items:center; gap:8px; margin:5px 0; }
+.legend .pin{ width:14px; height:14px; border-radius:50% 50% 50% 0; transform:rotate(-45deg); }
+.legend .pin.hotel{ background:var(--hotel); }
+.legend .pin.excursion{ background:var(--excursion); }
+.legend .pin.alt{ background:var(--alt); }
+
+/* ============================================================
+   CUSTOM MARKERS
+   ============================================================ */
+.pin-marker{ position:relative; }
+.pin-marker .pin{
+  width:26px; height:26px; border-radius:50% 50% 50% 0;
+  transform:rotate(-45deg);
+  border:2px solid rgba(255,255,255,.85);
+  box-shadow:0 3px 7px rgba(0,0,0,.4);
+  display:flex; align-items:center; justify-content:center;
+}
+.pin-marker .pin svg{ transform:rotate(45deg); width:13px; height:13px; color:#fff; }
+.pin-marker.hotel .pin{ background:var(--hotel); }
+.pin-marker.excursion .pin{ background:var(--excursion); }
+.pin-marker.alt .pin{ background:var(--alt); width:30px; height:30px; box-shadow:0 0 0 4px rgba(22,163,74,.35), 0 3px 7px rgba(0,0,0,.4); }
+.pin-marker.dim{ opacity:.35; }
+
+/* ============================================================
+   LEAFLET POPUP — themed
+   ============================================================ */
+.leaflet-popup-content-wrapper{
+  background:var(--ink-2); color:var(--text);
+  border-radius:0; border:1px solid var(--gold);
+  box-shadow:0 16px 50px rgba(0,0,0,.6);
+}
+.leaflet-popup-content{ margin:0; width:320px !important; }
+.leaflet-popup-tip{ background:var(--ink-2); border:1px solid var(--gold); }
+.leaflet-popup-close-button{ color:var(--text-dim) !important; font-size:20px !important; padding:8px 8px 0 0 !important; }
+.leaflet-popup-close-button:hover{ color:var(--gold) !important; }
+
+.pop{ font-family:'Inter',sans-serif; }
+.pop-head{ padding:16px 18px 12px; border-bottom:1px solid var(--line); }
+.pop-type{
+  display:inline-flex; align-items:center; gap:6px;
+  font-size:10px; text-transform:uppercase; letter-spacing:1.2px;
+  padding:3px 8px; margin-bottom:8px;
+}
+.pop-type.hotel{ background:rgba(37,99,235,.18); color:#93b4fb; }
+.pop-type.excursion{ background:rgba(224,123,27,.18); color:#f0b27a; }
+.pop-title{ font-family:'Cormorant Garamond',serif; font-size:23px; color:var(--white); line-height:1.1; }
+.pop-region{ font-size:12.5px; color:var(--text-dim); margin-top:4px; display:flex; align-items:center; gap:6px; }
+.pop-stars{ color:var(--gold); font-size:14px; letter-spacing:2px; margin-top:6px; }
+.pop-body{ padding:14px 18px; max-height:300px; overflow-y:auto; }
+.pop-row{ margin-bottom:12px; }
+.pop-row:last-child{ margin-bottom:0; }
+.pop-label{ font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--gold); margin-bottom:4px; }
+.pop-val{ font-size:13px; color:var(--text); line-height:1.5; }
+.chips{ display:flex; flex-wrap:wrap; gap:5px; }
+.chip{ font-size:11.5px; padding:3px 9px; background:var(--ink-3); color:var(--text); border:1px solid var(--line); }
+.pop-note{
+  background:rgba(184,150,46,.10); border-left:2px solid var(--gold);
+  padding:9px 11px; font-size:12.5px; color:var(--gold-soft); font-style:italic; line-height:1.5;
+}
+.pop-links{ display:flex; flex-direction:column; gap:4px; }
+.pop-link{
+  display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--text);
+  background:none; padding:6px 8px; text-align:left; width:100%; border:1px solid transparent;
+}
+.pop-link:hover{ background:var(--ink-3); border-color:var(--line); }
+.pop-link .ldot{ width:8px; height:8px; border-radius:50%; flex:0 0 8px; }
+.pop-link .ldot.excursion{ background:var(--excursion); }
+.pop-link .ldot.hotel{ background:var(--hotel); }
+.pop-link .lmeta{ color:var(--text-dim); font-size:11px; margin-left:auto; }
+.pop-foot{ padding:12px 18px; border-top:1px solid var(--line); }
+.btn-alt{
+  width:100%; padding:11px; background:var(--gold); color:var(--ink);
+  font-weight:600; font-size:12.5px; letter-spacing:.5px; text-transform:uppercase;
+  display:flex; align-items:center; justify-content:center; gap:8px;
+}
+.btn-alt:hover{ background:var(--gold-soft); }
+.btn-alt svg{ width:15px; height:15px; }
+.btn-alt.clear{ background:transparent; color:var(--gold); border:1px solid var(--gold); }
+
+/* alt-banner */
+.alt-banner{
+  position:absolute; top:14px; left:50%; transform:translateX(-50%); z-index:1200;
+  background:var(--ink); border:1px solid var(--alt); color:var(--text);
+  padding:10px 16px; font-size:13px; display:none; align-items:center; gap:14px;
+  box-shadow:0 10px 30px rgba(0,0,0,.5);
+}
+.alt-banner.show{ display:flex; }
+.alt-banner b{ color:#5cd98a; }
+.alt-banner button{
+  background:transparent; border:1px solid var(--line); color:var(--text-dim);
+  padding:5px 11px; font-size:12px;
+}
+.alt-banner button:hover{ border-color:var(--gold); color:var(--gold-soft); }
+
+@media (max-width:760px){
+  .sidebar{ position:absolute; inset:0 auto 0 0; width:300px; flex-basis:300px; }
+  .sidebar.collapsed{ margin-left:-300px; }
+  .side-toggle:not(.collapsed){ left:300px; }
+  .topbar .brand-name{ display:none; }
+  .dest-switch{ margin-left:0; }
+  .dest.soon{ display:none; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     LOGIN
+     ============================================================ -->
+<div id="login">
+  <form class="login-card" id="login-form" autocomplete="on">
+    <div class="brand-mark">
+      <span class="brand-globe">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.7 2.6 2.7 15.4 0 18M12 3c-2.7 2.6-2.7 15.4 0 18"/>
+        </svg>
+      </span>
+      <span class="brand-name">Doets <b>Reizen</b></span>
+    </div>
+    <div class="gold-rule"></div>
+    <p class="login-sub">Interactieve Reiskaart — interne verkoopomgeving</p>
+
+    <div class="field">
+      <label for="u">Gebruikersnaam</label>
+      <input id="u" name="username" type="text" autocomplete="username" placeholder="bv. elske" required />
+    </div>
+    <div class="field">
+      <label for="p">Wachtwoord</label>
+      <input id="p" name="password" type="password" autocomplete="current-password" placeholder="••••••••" required />
+    </div>
+    <button class="btn-gold" type="submit">Inloggen</button>
+    <div class="login-error" id="login-error">Ongeldig wachtwoord, probeer opnieuw</div>
+    <p class="login-hint">
+      Demo-accounts: <code>elske / doets2025</code>, <code>medewerker1 / reizen01</code>, <code>medewerker2 / reizen02</code>
+    </p>
+  </form>
+</div>
+
+<!-- ============================================================
+     APP
+     ============================================================ -->
+<div id="app">
+  <!-- TOP NAV -->
+  <header class="topbar">
+    <div class="brand-mark">
+      <span class="brand-globe">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.7 2.6 2.7 15.4 0 18M12 3c-2.7 2.6-2.7 15.4 0 18"/>
+        </svg>
+      </span>
+      <span class="brand-name">Doets <b>Reizen</b></span>
+    </div>
+
+    <nav class="dest-switch" id="dest-switch"><!-- destinations injected --></nav>
+
+    <div class="spacer"></div>
+
+    <div class="user-chip">
+      <span class="avatar" id="user-avatar">?</span>
+      <span>Ingelogd als <b id="user-name">—</b></span>
+    </div>
+    <button class="btn-logout" id="btn-logout">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+      Uitloggen
+    </button>
+  </header>
+
+  <!-- BODY -->
+  <div class="body-row">
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+      <div class="side-head">
+        <h2 id="dest-title">IJsland</h2>
+        <div class="count-line"><b id="cnt-hotels">0</b> hotels · <b id="cnt-exc">0</b> excursies <span id="cnt-shown"></span></div>
+        <div class="search-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input id="search" type="text" placeholder="Zoek hotel of excursie…" />
+        </div>
+      </div>
+
+      <div class="filters">
+        <div class="type-toggle">
+          <button id="t-hotels" class="on" data-type="hotels"><span class="dot hotel"></span> Hotels</button>
+          <button id="t-exc" class="on" data-type="excursions"><span class="dot excursion"></span> Excursies</button>
+        </div>
+        <div class="filter-row">
+          <label>Regio</label>
+          <select id="f-region"><option value="">Alle regio's</option></select>
+        </div>
+        <div class="filter-row">
+          <label>Hotelcategorie</label>
+          <select id="f-stars">
+            <option value="">Alle categorieën</option>
+            <option value="5">★★★★★ — 5 sterren</option>
+            <option value="4">★★★★ — 4 sterren</option>
+            <option value="3">★★★ — 3 sterren</option>
+          </select>
+        </div>
+        <div class="filter-row">
+          <label>Verzorging (board basis)</label>
+          <select id="f-board">
+            <option value="">Alle verzorgingen</option>
+            <option value="BB">BB — Logies & ontbijt</option>
+            <option value="HB">HB — Halfpension</option>
+            <option value="RO">RO — Alleen logies</option>
+          </select>
+        </div>
+        <button class="btn-reset" id="btn-reset">Filters wissen</button>
+      </div>
+
+      <div class="list" id="list"></div>
+    </aside>
+
+    <button class="side-toggle" id="side-toggle" title="Zijbalk in-/uitklappen">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+
+    <!-- MAP -->
+    <div id="map"></div>
+
+    <!-- legend -->
+    <div class="legend">
+      <div class="row"><span class="pin hotel"></span> Hotel</div>
+      <div class="row"><span class="pin excursion"></span> Excursie</div>
+      <div class="row"><span class="pin alt"></span> Alternatief hotel</div>
+    </div>
+
+    <!-- alternatives banner -->
+    <div class="alt-banner" id="alt-banner">
+      <span><b id="alt-count">0</b> alternatieve hotels gemarkeerd in de buurt</span>
+      <button id="alt-clear">Wis selectie</button>
+    </div>
+  </div>
+</div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+<script>
+/* ============================================================
+   AUTHENTICATIE
+   ============================================================ */
+const USERS = [
+  { username: "elske",       password: "doets2025" },
+  { username: "medewerker1", password: "reizen01" },
+  { username: "medewerker2", password: "reizen02" }
+];
+const LS_KEY = "doets_reiskaart_user";
+
+/* ============================================================
+   DATALAAG — destinatie-modules
+   Elke bestemming is een los object: makkelijk uit te breiden
+   met Noorwegen, Japan, Canada, ... als eigen module.
+   ============================================================ */
+const DESTINATIONS = {
+  iceland: {
+    id: "iceland",
+    name: "IJsland",
+    flag: "🇮🇸",
+    active: true,
+    center: [64.96, -18.5],
+    zoom: 7,
+    regions: ["Reykjavík & omgeving","Reykjanes","Zuidkust","Zuidoost (Vatnajökull)","Hooglanden","Westen & Fjorden","Noorden","Oosten"],
+    hotels: [
+      {
+        id:"h-foss-reykjavik", name:"Fosshotel Reykjavík", region:"Reykjavík & omgeving",
+        coords:[64.1430,-21.9290], stars:4,
+        rooms:["Standard","Superior","Business","Suite"],
+        board:"BB", contract:"Jaarcontract 01-01 t/m 31-12 2025", roomsContracted:25,
+        notes:"Groot stadshotel, goed alternatief voor Grand Hótel Reykjavík bij volle boeking. Centrale ligging, ideaal voor begin/eind rondreis.",
+        excursions:["e-golden-circle","e-blue-lagoon","e-reykjanes","e-whale-reykjavik"]
+      },
+      {
+        id:"h-grand-reykjavik", name:"Grand Hótel Reykjavík", region:"Reykjavík & omgeving",
+        coords:[64.1466,-21.9000], stars:4,
+        rooms:["Standard","Superior","Deluxe"],
+        board:"BB", contract:"Allotment 15-04 t/m 15-10 2025", roomsContracted:18,
+        notes:"Populair voor groepen. Bij vol: Fosshotel Reykjavík of Kvosin als alternatief.",
+        excursions:["e-golden-circle","e-blue-lagoon","e-whale-reykjavik"]
+      },
+      {
+        id:"h-kvosin", name:"Kvosin Downtown Hotel", region:"Reykjavík & omgeving",
+        coords:[64.1472,-21.9410], stars:4,
+        rooms:["Studio","Deluxe Studio","Apartment"],
+        board:"RO", contract:"On request, geen vast allotment", roomsContracted:6,
+        notes:"Boutique, hartje centrum bij Dómkirkjan. Premium alternatief voor klanten die luxe in de stad willen.",
+        excursions:["e-golden-circle","e-blue-lagoon"]
+      },
+      {
+        id:"h-ion-adventure", name:"ION Adventure Hotel", region:"Reykjavík & omgeving",
+        coords:[64.0560,-21.2030], stars:5,
+        rooms:["Standard","Deluxe","Northern Lights Suite"],
+        board:"HB", contract:"Allotment 01-05 t/m 30-09 2025", roomsContracted:10,
+        notes:"Design-icoon bij Þingvellir. Topkeuze voor honeymoon & noorderlicht. Bij vol uitwijken naar Hótel Grímsborgir.",
+        excursions:["e-golden-circle","e-northern-lights","e-blue-lagoon"]
+      },
+      {
+        id:"h-grimsborgir", name:"Hótel Grímsborgir", region:"Zuidkust",
+        coords:[64.0490,-20.9300], stars:4,
+        rooms:["Superior","Family Suite","Premium Villa"],
+        board:"BB", contract:"Jaarcontract 2025", roomsContracted:14,
+        notes:"Vlakbij Golden Circle. Goed alternatief voor ION Adventure. Sterk voor families.",
+        excursions:["e-golden-circle","e-northern-lights"]
+      },
+      {
+        id:"h-ranga", name:"Hótel Rangá", region:"Zuidkust",
+        coords:[63.8330,-20.3650], stars:4,
+        rooms:["Standard","Deluxe","Master Suite (continent)"],
+        board:"HB", contract:"Allotment 01-09 t/m 15-04 2025/26", roomsContracted:12,
+        notes:"Beroemd noorderlicht-hotel met sterrenwacht. Hoog seizoen snel vol — reserveer vroeg.",
+        excursions:["e-northern-lights","e-southcoast"]
+      },
+      {
+        id:"h-katla", name:"Hótel Katla (Vík)", region:"Zuidkust",
+        coords:[63.4670,-18.8870], stars:3,
+        rooms:["Standard","Superior","Family"],
+        board:"HB", contract:"Allotment 01-04 t/m 31-10 2025", roomsContracted:20,
+        notes:"Strategisch op de zuidroute bij Vík. Goed alternatief voor Hótel Dyrhólaey. Vaste stop dag 2 rondreis.",
+        excursions:["e-southcoast","e-northern-lights"]
+      },
+      {
+        id:"h-dyrholaey", name:"Hótel Dyrhólaey", region:"Zuidkust",
+        coords:[63.4140,-19.1230], stars:3,
+        rooms:["Standard","Superior"],
+        board:"BB", contract:"Allotment 01-05 t/m 30-09 2025", roomsContracted:11,
+        notes:"Panoramaligging bij Reynisfjara. Alternatief voor Hótel Katla bij volle boeking.",
+        excursions:["e-southcoast"]
+      },
+      {
+        id:"h-foss-vatnajokull", name:"Fosshotel Vatnajökull", region:"Zuidoost (Vatnajökull)",
+        coords:[64.2740,-15.2230], stars:4,
+        rooms:["Standard","Superior met gletsjerzicht"],
+        board:"HB", contract:"Allotment 01-04 t/m 31-10 2025", roomsContracted:16,
+        notes:"Dichtbij gletsjerlagunes. Vaste overnachting voor Jökulsárlón-bezoek. Bij vol: Fosshotel Glacier Lagoon.",
+        excursions:["e-jokulsarlon","e-glacier-hike"]
+      },
+      {
+        id:"h-glacier-lagoon", name:"Fosshotel Glacier Lagoon", region:"Zuidoost (Vatnajökull)",
+        coords:[63.9930,-16.4350], stars:4,
+        rooms:["Standard","Superior","Deluxe"],
+        board:"HB", contract:"Jaarcontract 2025", roomsContracted:22,
+        notes:"Grootste hotel in de regio. Uitstekend alternatief voor Fosshotel Vatnajökull. Veel kamers = flexibel voor groepen.",
+        excursions:["e-jokulsarlon","e-glacier-hike"]
+      },
+      {
+        id:"h-foss-myvatn", name:"Fosshotel Mývatn", region:"Noorden",
+        coords:[65.6010,-16.9960], stars:4,
+        rooms:["Standard","Superior met meerzicht"],
+        board:"BB", contract:"Allotment 15-05 t/m 30-09 2025", roomsContracted:15,
+        notes:"Modern hotel aan Mývatn-meer. Combineert met natuurbaden & Krafla. Alternatief: Sel-Hótel Mývatn.",
+        excursions:["e-myvatn-baths","e-whale-husavik"]
+      },
+      {
+        id:"h-sel-myvatn", name:"Sel-Hótel Mývatn", region:"Noorden",
+        coords:[65.6360,-16.9130], stars:3,
+        rooms:["Standard","Family"],
+        board:"HB", contract:"Allotment 01-06 t/m 15-09 2025", roomsContracted:13,
+        notes:"Familiebedrijf bij Skútustaðir. Voordeliger alternatief voor Fosshotel Mývatn.",
+        excursions:["e-myvatn-baths"]
+      },
+      {
+        id:"h-kea-akureyri", name:"Kea Hótel Akureyri", region:"Noorden",
+        coords:[65.6810,-18.0880], stars:4,
+        rooms:["Standard","Superior","Suite"],
+        board:"BB", contract:"Jaarcontract 2025", roomsContracted:19,
+        notes:"Hét stadshotel van Akureyri, naast de kerk. Goede uitvalsbasis noorden. Bij vol: Hótel Norðurland.",
+        excursions:["e-whale-husavik","e-myvatn-baths"]
+      },
+      {
+        id:"h-siglo", name:"Siglo Hótel", region:"Noorden",
+        coords:[66.1510,-18.9080], stars:4,
+        rooms:["Standard","Superior","Marina Suite"],
+        board:"BB", contract:"Allotment 01-06 t/m 30-09 2025", roomsContracted:9,
+        notes:"Sfeervol haventje Siglufjörður, vlakbij poolcirkel. Bijzondere overnachting noordroute.",
+        excursions:["e-whale-husavik"]
+      },
+      {
+        id:"h-foss-westfjords", name:"Fosshotel Westfjords (Patreksfjörður)", region:"Westen & Fjorden",
+        coords:[65.5970,-23.9990], stars:3,
+        rooms:["Standard","Superior"],
+        board:"BB", contract:"Allotment 01-06 t/m 31-08 2025", roomsContracted:10,
+        notes:"Toegangspoort tot Látrabjarg & Dynjandi. Beperkt aanbod in de Westfjorden — vroeg boeken.",
+        excursions:["e-dynjandi"]
+      }
+    ],
+    excursions: [
+      {
+        id:"e-golden-circle", name:"Golden Circle Tour", region:"Zuidkust",
+        coords:[64.3271,-20.1199], duration:"8 uur (dagtocht)", departure:"Reykjavík — diverse hotels",
+        desc:"Klassieke route langs Þingvellir Nationaal Park, het geisergebied Geysir/Strokkur en de Gullfoss-waterval.",
+        hotels:["h-foss-reykjavik","h-grand-reykjavik","h-kvosin","h-ion-adventure","h-grimsborgir"]
+      },
+      {
+        id:"e-blue-lagoon", name:"Blue Lagoon — toegang & transfer", region:"Reykjanes",
+        coords:[63.8804,-22.4495], duration:"3–4 uur", departure:"Reykjavík / Keflavík luchthaven",
+        desc:"Ontspannen in het wereldberoemde geothermische bad. Vaak gecombineerd met aankomst-/vertrekdag.",
+        hotels:["h-foss-reykjavik","h-grand-reykjavik","h-kvosin","h-ion-adventure"]
+      },
+      {
+        id:"e-reykjanes", name:"Reykjanes & Vulkaan Rondrit", region:"Reykjanes",
+        coords:[63.8790,-22.6900], duration:"6 uur", departure:"Reykjavík",
+        desc:"Geothermische velden, kliffen, de brug tussen continenten en recente vulkanische gebieden van Reykjanes.",
+        hotels:["h-foss-reykjavik"]
+      },
+      {
+        id:"e-northern-lights", name:"Noorderlicht Tour", region:"Zuidkust",
+        coords:[63.8330,-20.3650], duration:"3–4 uur (avond)", departure:"Lokale hotels (sep–apr)",
+        desc:"Avondexcursie op zoek naar het noorderlicht, weg van lichtvervuiling. Afhankelijk van weer & activiteit.",
+        hotels:["h-ion-adventure","h-grimsborgir","h-ranga","h-katla"]
+      },
+      {
+        id:"e-southcoast", name:"Zuidkust & Watervallen", region:"Zuidkust",
+        coords:[63.5320,-19.5110], duration:"Dagtocht", departure:"Vík / Reykjavík",
+        desc:"Seljalandsfoss, Skógafoss, het zwarte strand Reynisfjara en de Sólheimajökull-gletsjer.",
+        hotels:["h-ranga","h-katla","h-dyrholaey"]
+      },
+      {
+        id:"e-jokulsarlon", name:"Jökulsárlón Boottocht", region:"Zuidoost (Vatnajökull)",
+        coords:[64.0784,-16.2306], duration:"1,5 uur (+ Diamond Beach)", departure:"Jökulsárlón gletsjerlagune",
+        desc:"Amfibieboot tussen drijvende ijsbergen op de beroemdste gletsjerlagune van IJsland.",
+        hotels:["h-foss-vatnajokull","h-glacier-lagoon"]
+      },
+      {
+        id:"e-glacier-hike", name:"Gletsjerwandeling Vatnajökull", region:"Zuidoost (Vatnajökull)",
+        coords:[64.0160,-16.9760], duration:"3–5 uur", departure:"Skaftafell",
+        desc:"Begeleide wandeling met stijgijzers over de uitlopers van Europa's grootste gletsjer.",
+        hotels:["h-foss-vatnajokull","h-glacier-lagoon"]
+      },
+      {
+        id:"e-whale-husavik", name:"Whale Watching Húsavík", region:"Noorden",
+        coords:[66.0449,-17.3389], duration:"3 uur", departure:"Haven Húsavík",
+        desc:"Walvis-hoofdstad van Europa: grote kans op bultruggen, dwergvinvissen en dolfijnen in de Skjálfandibaai.",
+        hotels:["h-foss-myvatn","h-kea-akureyri","h-siglo"]
+      },
+      {
+        id:"e-whale-reykjavik", name:"Whale Watching Reykjavík", region:"Reykjavík & omgeving",
+        coords:[64.1540,-21.9410], duration:"3 uur", departure:"Oude haven Reykjavík",
+        desc:"Walvistocht vanuit de hoofdstad — handig te combineren met een stadsdag.",
+        hotels:["h-foss-reykjavik","h-grand-reykjavik"]
+      },
+      {
+        id:"e-myvatn-baths", name:"Mývatn Natuurbaden", region:"Noorden",
+        coords:[65.6307,-16.8470], duration:"2–3 uur", departure:"Mývatn-gebied",
+        desc:"Rustiger geothermisch alternatief voor de Blue Lagoon, met uitzicht over de vulkanische omgeving.",
+        hotels:["h-foss-myvatn","h-sel-myvatn","h-kea-akureyri"]
+      },
+      {
+        id:"e-dynjandi", name:"Dynjandi Waterval & Westfjorden", region:"Westen & Fjorden",
+        coords:[65.7332,-23.2030], duration:"Dagtocht", departure:"Patreksfjörður / Ísafjörður",
+        desc:"De majestueuze 'sluier'-waterval Dynjandi en de afgelegen fjordenlandschappen van de Westfjorden.",
+        hotels:["h-foss-westfjords"]
+      }
+    ]
+  },
+
+  /* --- Toekomstige bestemmingen (placeholders) --- */
+  norway: { id:"norway", name:"Noorwegen", flag:"🇳🇴", active:false, center:[64.5,12], zoom:4, regions:[], hotels:[], excursions:[] },
+  japan:  { id:"japan",  name:"Japan",      flag:"🇯🇵", active:false, center:[36,138], zoom:4, regions:[], hotels:[], excursions:[] },
+  canada: { id:"canada", name:"Canada",     flag:"🇨🇦", active:false, center:[56,-106], zoom:3, regions:[], hotels:[], excursions:[] }
+};
+
+/* ============================================================
+   STATE
+   ============================================================ */
+let DEST = DESTINATIONS.iceland;   // huidige bestemming
+let map, clusterGroup;
+const markerById = {};             // id -> leaflet marker
+let altActive = false;
+const state = {
+  search:"", region:"", stars:"", board:"",
+  showHotels:true, showExcursions:true
+};
+
+/* lookup helpers */
+const hotelById = id => DEST.hotels.find(h=>h.id===id);
+const excById   = id => DEST.excursions.find(e=>e.id===id);
+const starStr   = n => "★".repeat(n) + "☆".repeat(5-n);
+const esc = s => String(s).replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+
+/* haversine afstand in km */
+function distanceKm(a,b){
+  const R=6371, toRad=d=>d*Math.PI/180;
+  const dLat=toRad(b[0]-a[0]), dLon=toRad(b[1]-a[1]);
+  const lat1=toRad(a[0]), lat2=toRad(b[0]);
+  const x=Math.sin(dLat/2)**2 + Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLon/2)**2;
+  return R*2*Math.asin(Math.sqrt(x));
+}
+
+/* ============================================================
+   LOGIN LOGICA
+   ============================================================ */
+const $ = sel => document.querySelector(sel);
+
+function showApp(username){
+  $("#login").style.display="none";
+  $("#app").classList.add("active");
+  $("#user-name").textContent = username;
+  $("#user-avatar").textContent = username.charAt(0);
+  if(!map) initMap();
+  setTimeout(()=>map.invalidateSize(), 60);
+}
+
+$("#login-form").addEventListener("submit", e=>{
+  e.preventDefault();
+  const u = $("#u").value.trim();
+  const p = $("#p").value;
+  const match = USERS.find(x => x.username.toLowerCase()===u.toLowerCase() && x.password===p);
+  const err = $("#login-error");
+  if(match){
+    err.classList.remove("show");
+    localStorage.setItem(LS_KEY, match.username);
+    showApp(match.username);
+  } else {
+    err.classList.add("show");
+    $("#p").value="";
+    $("#p").focus();
+  }
+});
+
+$("#btn-logout").addEventListener("click", ()=>{
+  localStorage.removeItem(LS_KEY);
+  $("#app").classList.remove("active");
+  $("#login").style.display="flex";
+  $("#u").value=""; $("#p").value="";
+  $("#login-error").classList.remove("show");
+});
+
+/* sessie herstellen (persisteert over browser-sessies) */
+(function restoreSession(){
+  const saved = localStorage.getItem(LS_KEY);
+  if(saved && USERS.some(x=>x.username===saved)){
+    showApp(saved);
+  }
+})();
+
+/* ============================================================
+   MAP INIT
+   ============================================================ */
+function makeIcon(type, variant){
+  const icons = {
+    hotel:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 9h.01M15 9h.01M9 13h.01M15 13h.01M10 21v-4h4v4"/></svg>`,
+    excursion:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 18l5-12 5 8 3-5 5 9z"/></svg>`
+  };
+  const cls = `pin-marker ${type}${variant?(" "+variant):""}`;
+  return L.divIcon({
+    className:"", html:`<div class="${cls}"><div class="pin">${icons[type]}</div></div>`,
+    iconSize:[26,34], iconAnchor:[13,30], popupAnchor:[0,-30]
+  });
+}
+
+function initMap(){
+  map = L.map("map", { zoomControl:true, attributionControl:true })
+        .setView(DEST.center, DEST.zoom);
+  L.control.zoom({ position:"topright" }); // default already added
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom:18,
+    attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  }).addTo(map);
+
+  clusterGroup = L.markerClusterGroup({
+    showCoverageOnHover:false,
+    maxClusterRadius:48,
+    spiderfyOnMaxZoom:true,
+    iconCreateFunction: cluster => {
+      const n = cluster.getChildCount();
+      return L.divIcon({
+        html:`<div style="background:#0F172A;border:2px solid #B8962E;color:#E8EDF6;width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:Inter,sans-serif;font-weight:600;font-size:13px;box-shadow:0 3px 8px rgba(0,0,0,.45)">${n}</div>`,
+        className:"", iconSize:[38,38]
+      });
+    }
+  });
+  map.addLayer(clusterGroup);
+
+  buildMarkers();
+  buildDestinationSwitcher();
+  buildRegionFilter();
+  bindControls();
+  render();
+}
+
+/* maak alle markers één keer aan */
+function buildMarkers(){
+  DEST.hotels.forEach(h=>{
+    const m = L.marker(h.coords, { icon:makeIcon("hotel") });
+    m.bindPopup(()=>hotelPopup(h), { maxWidth:340, minWidth:320, autoPanPadding:[40,60] });
+    m._data = { type:"hotel", item:h };
+    markerById[h.id] = m;
+  });
+  DEST.excursions.forEach(e=>{
+    const m = L.marker(e.coords, { icon:makeIcon("excursion") });
+    m.bindPopup(()=>excursionPopup(e), { maxWidth:340, minWidth:320, autoPanPadding:[40,60] });
+    m._data = { type:"excursion", item:e };
+    markerById[e.id] = m;
+  });
+}
+
+/* ============================================================
+   POPUPS
+   ============================================================ */
+function hotelPopup(h){
+  const exHtml = (h.excursions||[]).map(eid=>{
+    const e = excById(eid); if(!e) return "";
+    return `<button class="pop-link" data-goto="${e.id}">
+      <span class="ldot excursion"></span><span>${esc(e.name)}</span>
+      <span class="lmeta">${esc(e.duration)}</span></button>`;
+  }).join("") || `<span class="pop-val" style="color:var(--text-dim)">Geen gekoppelde excursies</span>`;
+
+  return `<div class="pop">
+    <div class="pop-head">
+      <span class="pop-type hotel">● Hotel</span>
+      <div class="pop-title">${esc(h.name)}</div>
+      <div class="pop-region">📍 ${esc(h.region)}</div>
+      <div class="pop-stars">${starStr(h.stars)}</div>
+    </div>
+    <div class="pop-body">
+      <div class="pop-row"><div class="pop-label">Kamertypes</div>
+        <div class="chips">${h.rooms.map(r=>`<span class="chip">${esc(r)}</span>`).join("")}</div></div>
+      <div class="pop-row"><div class="pop-label">Contract & verzorging</div>
+        <div class="pop-val"><b>${esc(h.board)}</b> — ${esc(h.contract)}</div></div>
+      <div class="pop-row"><div class="pop-label">Gecontracteerde kamers</div>
+        <div class="pop-val">${h.roomsContracted} kamers</div></div>
+      <div class="pop-row"><div class="pop-label">Excursies in de buurt</div>
+        <div class="pop-links">${exHtml}</div></div>
+      ${h.notes ? `<div class="pop-row"><div class="pop-label">Notitie</div>
+        <div class="pop-note">${esc(h.notes)}</div></div>` : ""}
+    </div>
+    <div class="pop-foot">
+      <button class="btn-alt" data-alt="${h.id}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5M21 3l-7 7M8 21H3v-5M3 21l7-7"/></svg>
+        Toon alternatieven in de buurt
+      </button>
+    </div>
+  </div>`;
+}
+
+function excursionPopup(e){
+  const hHtml = (e.hotels||[]).map(hid=>{
+    const h = hotelById(hid); if(!h) return "";
+    return `<button class="pop-link" data-goto="${h.id}">
+      <span class="ldot hotel"></span><span>${esc(h.name)}</span>
+      <span class="lmeta">${starStr(h.stars)}</span></button>`;
+  }).join("") || `<span class="pop-val" style="color:var(--text-dim)">Geen gekoppelde hotels</span>`;
+
+  return `<div class="pop">
+    <div class="pop-head">
+      <span class="pop-type excursion">▲ Excursie</span>
+      <div class="pop-title">${esc(e.name)}</div>
+      <div class="pop-region">📍 ${esc(e.region)}</div>
+    </div>
+    <div class="pop-body">
+      <div class="pop-row"><div class="pop-label">Duur</div><div class="pop-val">${esc(e.duration)}</div></div>
+      <div class="pop-row"><div class="pop-label">Vertrekpunt</div><div class="pop-val">${esc(e.departure)}</div></div>
+      <div class="pop-row"><div class="pop-label">Omschrijving</div><div class="pop-val">${esc(e.desc)}</div></div>
+      <div class="pop-row"><div class="pop-label">Gekoppelde hotelpakketten</div>
+        <div class="pop-links">${hHtml}</div></div>
+    </div>
+  </div>`;
+}
+
+/* popup-knoppen (event delegation op de map-popup) */
+document.addEventListener("click", ev=>{
+  const goto = ev.target.closest("[data-goto]");
+  if(goto){ flyToItem(goto.getAttribute("data-goto")); return; }
+  const alt = ev.target.closest("[data-alt]");
+  if(alt){ showAlternatives(alt.getAttribute("data-alt")); return; }
+});
+
+/* ============================================================
+   ALTERNATIEVEN
+   ============================================================ */
+function showAlternatives(hotelId){
+  const base = hotelById(hotelId);
+  if(!base) return;
+  clearAlternatives();
+
+  // alternatieven = andere hotels binnen 60 km, gesorteerd op afstand
+  const RADIUS = 60;
+  const alts = DEST.hotels
+    .filter(h=>h.id!==hotelId)
+    .map(h=>({ h, d:distanceKm(base.coords, h.coords) }))
+    .filter(x=>x.d<=RADIUS)
+    .sort((a,b)=>a.d-b.d);
+
+  altActive = true;
+  // dim alles, highlight alternatieven
+  Object.values(markerById).forEach(m=>{
+    const el = m.getElement(); if(!el) return;
+    const pin = el.querySelector(".pin-marker");
+    if(pin) pin.classList.add("dim");
+  });
+
+  alts.forEach(({h,d})=>{
+    const m = markerById[h.id];
+    m.setIcon(makeIcon("hotel","alt"));
+    const el = m.getElement();
+    if(el){ const pin=el.querySelector(".pin-marker"); if(pin) pin.classList.remove("dim"); }
+    m.setZIndexOffset(1000);
+    // toon afstand in tooltip
+    m.bindTooltip(`${h.name} — ${d.toFixed(0)} km`, { direction:"top", offset:[0,-28] });
+  });
+
+  // basis-hotel zelf niet gedimd
+  const bm = markerById[hotelId];
+  const bel = bm.getElement();
+  if(bel){ const pin=bel.querySelector(".pin-marker"); if(pin) pin.classList.remove("dim"); }
+
+  // banner
+  $("#alt-count").textContent = alts.length;
+  $("#alt-banner").classList.add("show");
+
+  // zoom uit zodat alternatieven passen
+  if(alts.length){
+    const grp = L.featureGroup([bm, ...alts.map(a=>markerById[a.h.id])]);
+    map.fitBounds(grp.getBounds().pad(0.35), { maxZoom:9 });
+  }
+  map.closePopup();
+}
+
+function clearAlternatives(){
+  altActive = false;
+  $("#alt-banner").classList.remove("show");
+  Object.entries(markerById).forEach(([id,m])=>{
+    const d = m._data;
+    m.setIcon(makeIcon(d.type));
+    m.setZIndexOffset(0);
+    if(m.getTooltip()) m.unbindTooltip();
+    const el = m.getElement();
+    if(el){ const pin=el.querySelector(".pin-marker"); if(pin) pin.classList.remove("dim"); }
+  });
+}
+$("#alt-clear").addEventListener("click", clearAlternatives);
+
+/* ============================================================
+   NAVIGATIE / FLY-TO
+   ============================================================ */
+function flyToItem(id){
+  const m = markerById[id];
+  if(!m) return;
+  if(altActive) clearAlternatives();
+  // zorg dat het type zichtbaar is
+  const t = m._data.type;
+  if(t==="hotel" && !state.showHotels){ state.showHotels=true; $("#t-hotels").classList.add("on"); }
+  if(t==="excursion" && !state.showExcursions){ state.showExcursions=true; $("#t-exc").classList.add("on"); }
+  render();
+  map.flyTo(m.getLatLng(), 11, { duration:.8 });
+  // open popup nadat cluster opengeklapt is
+  clusterGroup.zoomToShowLayer(m, ()=> setTimeout(()=>m.openPopup(), 120));
+  // markeer in lijst
+  document.querySelectorAll(".item").forEach(i=>i.classList.toggle("active", i.dataset.id===id));
+}
+
+/* ============================================================
+   FILTERS / RENDER
+   ============================================================ */
+function matchesFilters(type, item){
+  if(type==="hotel"){
+    if(!state.showHotels) return false;
+    if(state.stars && String(item.stars)!==state.stars) return false;
+    if(state.board && item.board!==state.board) return false;
+  } else {
+    if(!state.showExcursions) return false;
+    if(state.stars) return false;   // sterren-filter sluit excursies uit
+    if(state.board) return false;   // board-filter sluit excursies uit
+  }
+  if(state.region && item.region!==state.region) return false;
+  if(state.search){
+    const q = state.search.toLowerCase();
+    const hay = (item.name+" "+item.region+" "+(item.desc||"")+" "+(item.departure||"")).toLowerCase();
+    if(!hay.includes(q)) return false;
+  }
+  return true;
+}
+
+function render(){
+  if(altActive) clearAlternatives();
+  clusterGroup.clearLayers();
+  const visible = [];
+
+  DEST.hotels.forEach(h=>{
+    if(matchesFilters("hotel",h)){ clusterGroup.addLayer(markerById[h.id]); visible.push({type:"hotel",item:h}); }
+  });
+  DEST.excursions.forEach(e=>{
+    if(matchesFilters("excursion",e)){ clusterGroup.addLayer(markerById[e.id]); visible.push({type:"excursion",item:e}); }
+  });
+
+  renderList(visible);
+
+  const hShown = visible.filter(v=>v.type==="hotel").length;
+  const eShown = visible.filter(v=>v.type==="excursion").length;
+  $("#cnt-hotels").textContent = DEST.hotels.length;
+  $("#cnt-exc").textContent = DEST.excursions.length;
+  $("#cnt-shown").textContent = ` · ${hShown+eShown} getoond`;
+}
+
+function renderList(visible){
+  const list = $("#list");
+  if(!visible.length){
+    list.innerHTML = `<div class="list-empty">Geen resultaten.<br>Pas je zoekopdracht of filters aan.</div>`;
+    return;
+  }
+  const hotels = visible.filter(v=>v.type==="hotel").map(v=>v.item)
+                  .sort((a,b)=>a.name.localeCompare(b.name,"nl"));
+  const excs   = visible.filter(v=>v.type==="excursion").map(v=>v.item)
+                  .sort((a,b)=>a.name.localeCompare(b.name,"nl"));
+
+  let html = "";
+  if(hotels.length){
+    html += `<div class="list-group-title">Hotels (${hotels.length})</div>`;
+    html += hotels.map(h=>itemRow("hotel",h,
+      `<span class="item-stars">${"★".repeat(h.stars)}</span>
+       <span class="item-region">${esc(h.region)}</span>
+       <span>· ${esc(h.board)}</span>`)).join("");
+  }
+  if(excs.length){
+    html += `<div class="list-group-title">Excursies (${excs.length})</div>`;
+    html += excs.map(e=>itemRow("excursion",e,
+      `<span class="item-region">${esc(e.region)}</span><span>· ${esc(e.duration)}</span>`)).join("");
+  }
+  list.innerHTML = html;
+
+  list.querySelectorAll(".item").forEach(el=>{
+    el.addEventListener("click", ()=>flyToItem(el.dataset.id));
+  });
+}
+
+function itemRow(type,item,meta){
+  const ico = type==="hotel"
+    ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 9h.01M15 9h.01M10 21v-4h4v4"/></svg>`
+    : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 18l5-12 5 8 3-5 5 9z"/></svg>`;
+  return `<div class="item" data-id="${item.id}">
+    <span class="item-icon ${type}">${ico}</span>
+    <div class="item-body">
+      <div class="item-name">${esc(item.name)}</div>
+      <div class="item-meta">${meta}</div>
+    </div>
+  </div>`;
+}
+
+/* ============================================================
+   CONTROLS
+   ============================================================ */
+function buildRegionFilter(){
+  const sel = $("#f-region");
+  DEST.regions.forEach(r=>{
+    const o=document.createElement("option"); o.value=r; o.textContent=r; sel.appendChild(o);
+  });
+}
+
+function buildDestinationSwitcher(){
+  const nav = $("#dest-switch");
+  nav.innerHTML="";
+  Object.values(DESTINATIONS).forEach(d=>{
+    const b=document.createElement("button");
+    b.className = "dest" + (d.active?" active":" soon");
+    b.innerHTML = `<span class="flag">${d.flag}</span> ${d.name}` +
+      (d.active?"":` <span class="tag">Binnenkort</span>`);
+    if(d.active){
+      b.addEventListener("click", ()=>{ /* enige actieve bestemming nu */ });
+    } else {
+      b.title = `${d.name} — binnenkort beschikbaar`;
+    }
+    nav.appendChild(b);
+  });
+}
+
+function bindControls(){
+  $("#search").addEventListener("input", e=>{ state.search=e.target.value.trim(); render(); });
+  $("#f-region").addEventListener("change", e=>{ state.region=e.target.value; render(); });
+  $("#f-stars").addEventListener("change", e=>{
+    state.stars=e.target.value;
+    if(state.stars){ state.showExcursions=false; $("#t-exc").classList.remove("on"); }
+    render();
+  });
+  $("#f-board").addEventListener("change", e=>{
+    state.board=e.target.value;
+    if(state.board){ state.showExcursions=false; $("#t-exc").classList.remove("on"); }
+    render();
+  });
+  $("#t-hotels").addEventListener("click", ()=>{
+    state.showHotels=!state.showHotels; $("#t-hotels").classList.toggle("on",state.showHotels); render();
+  });
+  $("#t-exc").addEventListener("click", ()=>{
+    state.showExcursions=!state.showExcursions; $("#t-exc").classList.toggle("on",state.showExcursions); render();
+  });
+  $("#btn-reset").addEventListener("click", ()=>{
+    Object.assign(state,{ search:"",region:"",stars:"",board:"",showHotels:true,showExcursions:true });
+    $("#search").value=""; $("#f-region").value=""; $("#f-stars").value=""; $("#f-board").value="";
+    $("#t-hotels").classList.add("on"); $("#t-exc").classList.add("on");
+    render();
+  });
+
+  // sidebar collapse
+  $("#side-toggle").addEventListener("click", ()=>{
+    const sb=$("#sidebar"), tg=$("#side-toggle");
+    const collapsed = sb.classList.toggle("collapsed");
+    tg.classList.toggle("collapsed", collapsed);
+    setTimeout(()=>map.invalidateSize(), 280);
+  });
+}
+</script>
+</body>
+</html>
